@@ -1,12 +1,27 @@
 # 視界停車 Vision Parking
 
-新竹市停車場**即時空位**查詢頁：以任一地點為圓心（本專案以[視界學院](https://visioneco.tw)新竹據點為例），顯示周邊停車場即時剩餘車位、智慧停車建議、YouBike 站點與歷史時段統計。
+**「老闆，你們那邊好停車嗎？」——這個系統就是那句話的答案。**
 
-**Live Demo：https://visionecoparking.visioneco.tw/**
+一個可以放進任何官網、LINE、Google 商家檔案的即時停車頁：以你的店（或教室、住家、公司）為圓心，即時顯示周邊停車場還剩幾個位子、建議停哪裡、走過來幾分鐘。客人出發前看一眼，到了直接停——不用繞、不會遲到、不會「算了改天再去」。
 
-> A real-time parking availability dashboard for Hsinchu City, Taiwan — single-file static page + tiny VPS cron pipeline. Zero framework, zero build step, near-zero running cost.
+**Live Demo（以新竹的視界學院為中心）：https://visionecoparking.visioneco.tw/**
+
+> A real-time parking availability dashboard for any location in Hsinchu City, Taiwan — single-file static page + tiny VPS cron pipeline. Zero framework, zero build step, near-zero running cost. Fork it, change one coordinate, and it becomes *your* store's parking page.
 
 ![畫面截圖](docs/screenshot.png)
+
+## 為什麼做這個
+
+「找不到車位」是實體場域最隱形的流失原因：客人在附近繞了十分鐘，下次就直接去好停車的那家了。我們是教育機構，學員遲到最常見的原因不是塞車，是**到了之後在繞停車位**。與其在報名信裡貼三個停車場地址，不如給一個「出發前看一眼就知道怎麼停」的頁面——做完之後發現，這對任何開實體店的人都有用，所以開源。
+
+## 誰適合用
+
+- 🏪 **實體店家**：餐廳、診所、美髮、健身房、工作室——把連結放官網和訂位確認訊息裡，「好停車」本身就是服務的一部分
+- 🏫 **教室與活動場地**：課前、活動前把連結發到群組，遲到率有感下降
+- 🏠 **住家**：以家為圓心，回家前看一眼今晚該停哪
+- 🏢 **通勤族**：以公司為圓心，上班前少繞兩圈
+
+改一組座標就是你的版本，手機加入主畫面後就像一個專屬 App。
 
 ## 功能
 
@@ -15,7 +30,7 @@
 - 🧭 **智慧建議**：自動推薦去哪停；空位少提醒排隊、全滿建議一鍵擴大範圍；只剩電動／身障位會註明
 - 🗺 **地圖**：Leaflet + OpenStreetMap，每場即時空位數直接標在地圖上
 - 🚲 **YouBike 圖層**（可開關）：介接交通部 TDX，顯示各站可借／可還；採**需求驅動抓取**——沒人開圖層就零 API 呼叫，免費額度絕不爆
-- 📊 **歷史統計**：每 10 分鐘快照進 SQLite，彙整「近 28 天平日／週末 × 24 小時平均剩餘」，卡片顯示「這時段通常剩約 N 位」
+- 📊 **歷史統計**：每 10 分鐘快照進 SQLite，彙整「近 28 天平日／週末 × 24 小時平均剩餘」，卡片顯示「這時段通常剩約 N 位」——客人連「幾點來比較好停」都能提前知道
 - 📱 **手機優先**：可加入主畫面（PWA manifest＋品牌圖示）、深色模式、`prefers-reduced-motion` 支援
 
 ## 架構
@@ -28,7 +43,7 @@
         cron 每10分 ────┘ log-parkstats.py    ──▶ SQLite → stats.json
 ```
 
-設計原則：**頁面不直連任何第三方 API**。伺服器把外部資料抓成靜態 JSON，瀏覽器只讀自己主機的快取——速度快、不怕 CORS、不怕把上游打掛，API 金鑰也永遠不會出現在前端。
+設計原則：**頁面不直連任何第三方 API**。伺服器把外部資料抓成靜態 JSON，瀏覽器只讀自己主機的快取——速度快、不怕 CORS、不怕把上游打掛，API 金鑰也永遠不會出現在前端。一台每月 6 美元的最小 VPS 綽綽有餘。
 
 ## 快速部署
 
@@ -52,16 +67,18 @@ sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d 你的網域
 ```
 
-## 改成你自己的地點
+## 改成你的店／你的城市
 
-只要改 `hsinchu-parking.html` 裡的三個常數：
+**同在新竹市**：只要改 `hsinchu-parking.html` 裡的中心座標，五分鐘完工——
 
 ```js
-const CENTER = { lat: 24.80725, lng: 120.96794 };  // 你的中心點座標
+const CENTER = { lat: 24.80725, lng: 120.96794 };  // 換成你的店的座標
 const RADIUS_MIN = 100, RADIUS_MAX = 1000, RADIUS_DEF = 500;  // 範圍滑桿
 ```
 
-換其他城市則需替換資料來源 `API`（各縣市停車開放資料格式不同，`render()` 內的欄位對應需一併調整）。
+**其他城市**：把資料來源 `API` 換成你所在縣市的停車開放資料（各縣市格式不同，`render()` 內的欄位對應需一併調整）。歡迎把你的城市版本 fork 出去，也歡迎開 PR 回來讓這裡支援更多城市。
+
+**路邊停車（智慧停車柱）**：部分縣市（例如台北市）已把路邊停車格的即時剩餘上架 TDX 的 OnStreet API，同樣的管線模式就能介接，把路邊格位也疊上地圖；新竹市目前尚未上架，哪天開放了本專案會第一時間跟上。
 
 ## 免費額度保護（TDX）
 
@@ -80,4 +97,4 @@ TDX 免費會員每月只有 3 個虛擬點數（≈4,500 次基礎服務呼叫�
 
 ## License
 
-[MIT](LICENSE) — 歡迎自由使用、修改、部署到你的城市。如果對你有幫助，給顆 ⭐ 就是最好的回饋！
+[MIT](LICENSE) — 拿去用、改成你的店、部署到你的城市，都不用問。做出你的版本歡迎回來留個 issue 分享，對你有幫助的話，給顆 ⭐ 就是最好的回饋！
