@@ -156,6 +156,7 @@
   .bar i.ok{background:var(--ok)} .bar i.warn{background:var(--warn)} .bar i.hot{background:var(--hot)} .bar i.bad,.bar i.full{background:var(--bad)}
 
   .qwarn{font-size:12.5px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:6px 10px;font-weight:600}
+  .stale{font-size:12px;color:var(--muted);background:var(--ground);border:1px dashed var(--line);border-radius:8px;padding:6px 10px;font-weight:500}
   .hist{font-size:12px;color:var(--muted);background:var(--ground);border-radius:8px;padding:6px 10px}
   .hist b{color:var(--accent-dark)}
   .types{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
@@ -225,7 +226,7 @@
   <footer class="foot">
     <p>範圍：以視界學院（新竹市北區中正路107號）為中心，顯示範圍可用上方滑桿調整（100 m〜1 公里，預設 500 m），只列官方 API 有即時資料的停車場，依距離由近到遠排列；步行時間以每分鐘 80 公尺、路線係數 1.3 估算。</p>
     <p>資料來源：新竹市政府交通處停管科開放資料（<a href="https://hispark.hccg.gov.tw/OpenData/GetParkInfo" target="_blank" rel="noopener">hispark.hccg.gov.tw</a>，與官方「新竹市好停車」App 相同來源）；YouBike 資料來源：交通部 TDX 運輸資料流通服務；天氣資料來源：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>（CC BY 4.0，每 10 分鐘更新，建議僅供參考）；地圖圖資 © OpenStreetMap 貢獻者。</p>
-    <p>即時性說明：本頁每 20 秒自動更新，但市府系統每筆停車場資料通常約 1〜3 分鐘才寫入一次，實測偶爾會出現 20 分鐘以上沒有寫入的情況，且尖峰時段數字可能瞬間大幅變動，因此畫面數字與現場實況可能有落差。每張卡片的「官方更新」欄位即為市府系統寫入該筆資料的時間，標題下方也會顯示「市府資料 N 分前」——若這個數字持續變大，代表是市府端暫停更新，不是本頁故障；超過 15 分鐘會自動出現提醒。</p>
+    <p>即時性說明：本頁每 20 秒自動更新，但市府系統每筆停車場資料通常約 1〜3 分鐘才寫入一次，實測偶爾會出現 20 分鐘以上沒有寫入的情況，且尖峰時段數字可能瞬間大幅變動，因此畫面數字與現場實況可能有落差。每張卡片的「官方更新」欄位即為市府系統寫入該筆資料的時間；若某個停車場超過 15 分鐘沒有更新，該卡片上會直接標註「這個數字是 N 分鐘前的」，其餘資料正常的停車場不受影響。</p>
     <p>免責聲明：本頁面由視界學院整理提供，僅供行前參考。車位數量隨時變動，實際以現場為準；視界學院不保證資料之即時性、正確性與完整性，亦不對使用本頁面資訊所生之任何損害負責。</p>
     <p>開源聲明：本系統已在 GitHub 開源（<a href="https://github.com/CasperHsu/vision-parking" target="_blank" rel="noopener">CasperHsu/vision-parking</a>，MIT 授權）——歡迎自由取用，改成你的店、你的城市。若你部署了自己的版本，歡迎到 GitHub 開個 issue 或透過上方 LINE 告訴我們；這不是授權義務，但知道這個點子在別的地方發芽，是我們最開心的事。</p>
   </footer>
@@ -266,6 +267,7 @@
     ["ECAR","電動車充電位"],["MOT","機車"],["DIS","身心障礙"],["CW","婦幼／親子"],["BIG","大型車"]
   ];
   const INTERVAL = 20;
+  const STALE_MIN = 15; // 官方超過這個分鐘數沒重寫該筆，就在那張卡片上標註（設 null 可關閉）
   const lotsEl = document.getElementById("lots");
   const statusEl = document.getElementById("status");
   const noticeEl = document.getElementById("notice");
@@ -500,6 +502,7 @@
         <div class="main num"><span class="free ${s.lv}">${s.free}</span><span class="total">/ ${s.total} ${s.unit}</span></div>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${s.total}" aria-valuenow="${s.free}" aria-label="剩餘${s.unit}"><i class="${s.lv}" style="width:${pct.toFixed(1)}%"></i></div>
         ${!s.motoOnly && s.free>0 && s.free<3 ? `<div class="qwarn">⚠ 剩不到 3 位，可能有人在排隊，抵達時不一定有位</div>` : ""}
+        ${STALE_MIN!=null && ageMin(x.UPDATETIME)>STALE_MIN ? `<div class="stale">⏸ 這個數字是 ${fmtAge(ageMin(x.UPDATETIME))}的，市府尚未更新</div>` : ""}
         ${!s.motoOnly && histFor(it.id) ? `<div class="hist">${histFor(it.id)}</div>` : ""}
         ${types?`<div class="types">${types}</div>`:""}
         <dl>
@@ -552,11 +555,7 @@
     let srcTxt = "";
     if(freshest!=null) srcTxt = ` · 市府資料 ${fmtAge(freshest)}`;
     statusEl.textContent = `頁面更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}${srcTxt} · ${fmtDist(radiusM)} 內 ${list.length} 場`;
-    // 官方端超過 15 分鐘沒寫入 → 明白告訴使用者「不是頁面壞了，是上游卡住」
-    if(freshest!=null && freshest>15){
-      noticeEl.hidden=false; noticeEl.className="notice";
-      noticeEl.textContent=`市府系統目前約 ${Math.round(freshest)} 分鐘沒有更新資料了（正常約 1〜3 分鐘）。本頁仍在正常運作，但下方數字是市府端最後寫入的狀態，請以現場為準。`;
-    }
+    // 資料不新鮮不再跳全站警告（太吵、像故障）；改在各停車場卡片上個別標示
     try{ localStorage.setItem("hcpark.last", JSON.stringify({t:now.toISOString(), data})); }catch(e){}
   }
 
