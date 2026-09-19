@@ -30,6 +30,7 @@
 - 🧭 **智慧建議**：自動推薦去哪停；空位少提醒排隊、全滿建議一鍵擴大範圍；只剩電動／身障位會註明
 - 🗺 **地圖**：Leaflet + OpenStreetMap，每場即時空位數直接標在地圖上
 - 🚲 **YouBike 圖層**（可開關）：介接交通部 TDX，顯示各站可借／可還；採**需求驅動抓取**——沒人開圖層就零 API 呼叫，免費額度絕不爆
+- 🌦 **目的地即時天氣**：介接 [Open-Meteo](https://open-meteo.com/)（免金鑰），顯示目的地現在溫度、3 小時內降雨機率、紫外線，並給一句白話建議（帶傘／防曬／帶外套）——從外地來的人出門前一眼搞定
 - 📊 **歷史統計**：每 10 分鐘快照進 SQLite，彙整「近 28 天平日／週末 × 24 小時平均剩餘」，卡片顯示「這時段通常剩約 N 位」——客人連「幾點來比較好停」都能提前知道
 - 📱 **手機優先**：可加入主畫面（PWA manifest＋品牌圖示）、深色模式、`prefers-reduced-motion` 支援
 
@@ -91,6 +92,7 @@ TDX 免費會員每月只有 3 個虛擬點數（≈4,500 次基礎服務呼叫�
 
 - 停車場即時資訊：[新竹市政府交通處「好停車」開放資料](https://hispark.hccg.gov.tw/)（[政府資料開放平臺 #129136](https://data.gov.tw/dataset/129136)）
 - YouBike 即時資訊：[交通部 TDX 運輸資料流通服務](https://tdx.transportdata.tw/)
+- 天氣資訊：[Open-Meteo](https://open-meteo.com/)（CC BY 4.0）
 - 地圖圖資：© [OpenStreetMap](https://www.openstreetmap.org/copyright) 貢獻者
 
 本專案與新竹市政府、交通部無任何隸屬關係；資料僅供參考，實際車位以現場為準。

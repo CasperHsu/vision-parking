@@ -80,4 +80,12 @@ if [ -f "$(dirname "$0")/log-parkstats.py" ]; then
   ( { crontab -l 2>/dev/null | grep -v log-parkstats.py; } || true ; echo "*/10 * * * * /usr/local/bin/log-parkstats.py >/dev/null 2>&1" ) | crontab -
 fi
 
+# 6) 學院即時天氣：每 10 分鐘抓 Open-Meteo（免金鑰）存 weather.json
+if [ -f "$(dirname "$0")/fetch-weather.py" ]; then
+  cp "$(dirname "$0")/fetch-weather.py" /usr/local/bin/fetch-weather.py
+  chmod +x /usr/local/bin/fetch-weather.py
+  /usr/local/bin/fetch-weather.py || true
+  ( { crontab -l 2>/dev/null | grep -v fetch-weather.py; } || true ; echo "*/10 * * * * /usr/local/bin/fetch-weather.py >/dev/null 2>&1" ) | crontab -
+fi
+
 echo "完成。開啟 https://visionecoparking.visioneco.tw/"

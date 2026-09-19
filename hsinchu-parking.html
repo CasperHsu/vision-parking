@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#3B6347">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="視界停車">
@@ -64,6 +65,17 @@
 
   .notice{margin-top:12px;padding:10px 12px;border-radius:8px;font-size:13px;background:var(--warn-soft);color:var(--ink);border:1px solid transparent}
   .notice.bad{background:var(--bad-soft)}
+
+  .wx{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:13px;color:var(--muted)}
+  .wx[hidden]{display:none}
+  .wx .ico{font-size:19px;line-height:1}
+  .wx b{color:var(--ink);font-weight:700}
+  .wx .sep{color:var(--line)}
+  .wx .tip{margin-left:auto;font-weight:700;font-size:12px;padding:4px 11px;border-radius:999px;white-space:nowrap}
+  .wx .tip.ok{background:var(--ok-soft);color:var(--ok)}
+  .wx .tip.warn{background:var(--warn-soft);color:var(--warn)}
+  .wx .tip.bad{background:var(--bad-soft);color:var(--bad)}
+  @media (max-width:430px){ .wx .tip{margin-left:0;flex-basis:100%;text-align:center} }
 
   .rangebar{margin-top:14px;display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
   .rangebar .rlbl{font-size:13px;font-weight:700;white-space:nowrap}
@@ -181,6 +193,8 @@
     </button>
   </header>
 
+  <section class="wx" id="wx" hidden aria-label="學院即時天氣"></section>
+
   <div class="notice" id="notice" hidden></div>
 
   <section class="best" id="best" hidden>
@@ -208,7 +222,7 @@
 
   <footer class="foot">
     <p>範圍：以視界學院（新竹市北區中正路107號）為中心，顯示範圍可用上方滑桿調整（100 m〜1 公里，預設 500 m），只列官方 API 有即時資料的停車場，依距離由近到遠排列；步行時間以每分鐘 80 公尺、路線係數 1.3 估算。</p>
-    <p>資料來源：新竹市政府交通處停管科開放資料（<a href="https://hispark.hccg.gov.tw/OpenData/GetParkInfo" target="_blank" rel="noopener">hispark.hccg.gov.tw</a>，與官方「新竹市好停車」App 相同來源）；YouBike 資料來源：交通部 TDX 運輸資料流通服務；地圖圖資 © OpenStreetMap 貢獻者。</p>
+    <p>資料來源：新竹市政府交通處停管科開放資料（<a href="https://hispark.hccg.gov.tw/OpenData/GetParkInfo" target="_blank" rel="noopener">hispark.hccg.gov.tw</a>，與官方「新竹市好停車」App 相同來源）；YouBike 資料來源：交通部 TDX 運輸資料流通服務；天氣資料來源：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>（CC BY 4.0，每 10 分鐘更新，建議僅供參考）；地圖圖資 © OpenStreetMap 貢獻者。</p>
     <p>即時性說明：本頁每 20 秒自動更新，但市府系統每筆停車場資料約 1〜3 分鐘才寫入一次，且尖峰時段數字可能瞬間大幅變動，因此畫面數字與現場實況可能有數分鐘落差；「官方更新」欄位為市府系統寫入該筆資料的時間。</p>
     <p>免責聲明：本頁面由視界學院整理提供，僅供行前參考。車位數量隨時變動，實際以現場為準；視界學院不保證資料之即時性、正確性與完整性，亦不對使用本頁面資訊所生之任何損害負責。</p>
     <p>開源聲明：本系統已在 GitHub 開源（<a href="https://github.com/CasperHsu/vision-parking" target="_blank" rel="noopener">CasperHsu/vision-parking</a>，MIT 授權）——歡迎自由取用，改成你的店、你的城市。若你部署了自己的版本，歡迎到 GitHub 開個 issue 或透過上方 LINE 告訴我們；這不是授權義務，但知道這個點子在別的地方發芽，是我們最開心的事。</p>
@@ -223,6 +237,7 @@
     <ul class="intro-list">
       <li><span>📍</span><div><b>周邊停車場即時空位</b><br>以學院為中心，範圍 100 m〜1 公里可調</div></li>
       <li><span>🧭</span><div><b>自動建議去哪停</b><br>有位的排最前面；車位少會提醒排隊或擴大範圍</div></li>
+      <li><span>🌦</span><div><b>學院即時天氣</b><br>出門前看一眼要不要帶傘、防曬（每 10 分鐘更新）</div></li>
       <li><span>🚲</span><div><b>YouBike 站點資訊</b><br>地圖右上角可開啟，顯示各站可借車數</div></li>
       <li><span>⏱</span><div><b>每 20 秒自動更新</b><br>官方系統約 1〜3 分鐘寫入一次，數字可能有落差</div></li>
     </ul>
@@ -579,6 +594,38 @@
   }
   loadStats();
   setInterval(loadStats, 3600000);
+
+  // ---- 學院即時天氣（VPS 每 10 分鐘快取 Open-Meteo；沒有檔案或過期就整條隱藏）----
+  const wxEl = document.getElementById("wx");
+  // WMO 天氣代碼 → 圖示（遞增區間，取最後一個 <= code 的）
+  const WMO_ICON = [[0,"☀️"],[1,"🌤"],[2,"⛅"],[3,"☁️"],[45,"🌫"],[51,"🌦"],[61,"🌧"],[71,"🌨"],[80,"🌧"],[95,"⛈"]];
+  function wxIcon(c){ let ic="🌡"; for(const [k,v] of WMO_ICON){ if(c>=k) ic=v; } return ic; }
+  function wxAdvice(w){
+    const raining = (w.rain_now||0)>=0.1 || w.wcode>=51;      // 51 以上都是降水類代碼
+    if(raining)      return {cls:"bad",  txt:"☂️ 正在下雨，記得帶傘"};
+    if(w.pop3>=30)   return {cls:"warn", txt:"☂️ 可能下雨，建議帶傘"};
+    if(w.uv3>=8)     return {cls:"bad",  txt:"🧴 紫外線過量，務必防曬"};
+    if(w.uv3>=6)     return {cls:"warn", txt:"🧴 紫外線偏強，建議防曬"};
+    if(w.feel<=14)   return {cls:"warn", txt:"🧥 偏冷，帶件外套"};
+    if(w.feel>=36)   return {cls:"warn", txt:"🥤 悶熱，注意補水"};
+    return {cls:"ok", txt:"👍 好天氣，安心出門"};
+  }
+  function loadWeather(){
+    getJSON("./weather.json").then(w=>{
+      // 快取超過 2 小時視為失效，寧可不顯示也不誤導
+      if(!w || !w.fetched || Date.now()-new Date(w.fetched).getTime() > 7200000){ wxEl.hidden=true; return; }
+      const a = wxAdvice(w);
+      wxEl.innerHTML =
+        `<span class="ico">${wxIcon(w.wcode)}</span>`+
+        `<span>學院現在 <b class="num">${Math.round(w.temp)}°C</b></span><span class="sep">·</span>`+
+        `<span>3 小時內降雨 <b class="num">${w.pop3}%</b></span><span class="sep">·</span>`+
+        `<span>紫外線 <b class="num">${w.uv3}</b></span>`+
+        `<span class="tip ${a.cls}">${a.txt}</span>`;
+      wxEl.hidden = false;
+    }).catch(()=>{ wxEl.hidden=true; });
+  }
+  loadWeather();
+  setInterval(loadWeather, 600000);
 
   skeleton();
   try{

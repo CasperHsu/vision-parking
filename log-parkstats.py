@@ -8,10 +8,11 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 SRC = "/var/www/parking/parkinfo.json"
+WX = "/var/www/parking/weather.json"
 DB = "/var/lib/parking/stats.db"
 OUT = "/var/www/parking/stats.json"
 TZ = ZoneInfo("Asia/Taipei")
-KEEP_DAYS, AGG_DAYS = 60, 28
+KEEP_DAYS, AGG_DAYS = 180, 28  # 2026-09-19 Casper 拍板：存 180 天、彙整看近 28 天
 
 os.makedirs("/var/lib/parking", exist_ok=True)
 con = sqlite3.connect(DB)
@@ -33,6 +34,16 @@ for x in data:
 if rows:
     con.executemany("INSERT INTO snap VALUES(?,?,?,?)", rows)
 con.execute("DELETE FROM snap WHERE ts < ?", (now - KEEP_DAYS * 86400,))
+
+# 天氣快照一起存（供日後做「雨天 vs 晴天車位差多少」的關聯分析）
+con.execute("CREATE TABLE IF NOT EXISTS wx(ts INTEGER, temp REAL, pop INTEGER, rain REAL, uvi REAL)")
+try:
+    w = json.load(open(WX))
+    con.execute("INSERT INTO wx VALUES(?,?,?,?,?)",
+                (now, w.get("temp"), w.get("pop3"), w.get("rain_now"), w.get("uv3")))
+except Exception:
+    pass
+con.execute("DELETE FROM wx WHERE ts < ?", (now - KEEP_DAYS * 86400,))
 con.commit()
 
 def stale(p, sec):
