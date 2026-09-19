@@ -46,36 +46,55 @@ def main():
           + ("　✅ 收集正常" if got >= expected * 0.9 else "　⚠️ 有缺漏，cron 可能中斷過"))
     print()
 
-    moving, full, moto, frozen = [], [], [], []
+    # 分類的關鍵：先看市府「有沒有重新寫入這一場」（upd 前進），再看數字有沒有變。
+    # 有寫入＋數字一直是 0 → 那個 0 是可信的真滿位；沒寫入 → 任何數字都只是舊值，不能判斷。
+    moving, truly_full, moto, sensor_stuck, no_write = [], [], [], [], []
     for pk, seq in by.items():
         vals = [r[2] for r in seq]
         tot = seq[-1][3]
         nm = names.get(pk, "?")
-        if len(set(vals)) > 1:
-            moving.append(pk)
-        elif tot == 0:
+        upds = [r[4] for r in seq if len(r) > 4 and r[4]] if has_upd else []
+        wrote = len(set(upds)) > 1 if upds else None  # None＝沒有 upd 資料可判斷
+
+        if tot == 0:
             moto.append(pk)
+        elif len(set(vals)) > 1:
+            moving.append(pk)
+        elif wrote is False:
+            no_write.append((pk, nm, vals[-1], tot))
         elif set(vals) == {0}:
-            full.append((pk, nm, tot))
+            truly_full.append((pk, nm, tot, wrote))
         else:
-            frozen.append((pk, nm, vals[-1], tot, len(vals)))
+            sensor_stuck.append((pk, nm, vals[-1], tot, len(vals), wrote))
 
     print(f"合計 {len(by)} 場")
-    print(f"  ✅ 有變動        {len(moving)} 場")
-    print(f"  🅿️ 整段顯示 0    {len(full)} 場")
-    print(f"  🏍 純機車場      {len(moto)} 場（無汽車位，本來就恆為 0）")
-    print(f"  ⚠️ 疑似凍結      {len(frozen)} 場")
+    print(f"  ✅ 有變動          {len(moving)} 場")
+    print(f"  🅿️ 顯示 0 不變      {len(truly_full)} 場")
+    print(f"  🏍 純機車場        {len(moto)} 場（無汽車位，本來就恆為 0）")
+    print(f"  ⚠️ 有空位卻不動     {len(sensor_stuck)} 場")
+    if no_write:
+        print(f"  🔴 市府完全沒寫入   {len(no_write)} 場（數字是舊值，無法判斷真假）")
 
-    if full:
-        print("\n🅿️ 整段顯示 0（可能真的滿，也可能是感測器沒回報——格數越多越可疑）：")
-        for pk, nm, tot in sorted(full, key=lambda x: -x[2]):
-            flag = "　← 格數多卻整段 0，建議留意" if tot >= 200 else ""
-            print(f"   {pk} {nm}（{tot} 格）{flag}")
+    if truly_full:
+        print("\n🅿️ 顯示 0 且沒變：")
+        for pk, nm, tot, wrote in sorted(truly_full, key=lambda x: -x[2]):
+            if wrote:
+                print(f"   {pk} {nm}（{tot} 格）　✅ 市府持續有在寫入 → 這個 0 可信，是真的滿了")
+            elif wrote is None:
+                print(f"   {pk} {nm}（{tot} 格）　❔ 無寫入時間資料，無法確認真假")
 
-    if frozen:
-        print("\n⚠️ 疑似凍結（有空位但數字完全不動）：")
-        for pk, nm, v, tot, n in sorted(frozen, key=lambda x: -x[4]):
-            print(f"   {pk} {nm} 連續 {n} 筆都是 {v}/{tot}")
+    if sensor_stuck:
+        print("\n⚠️ 有空位卻完全不動（市府有寫入卻數字never變＝該場感測可能異常）：")
+        for pk, nm, v, tot, n, wrote in sorted(sensor_stuck, key=lambda x: -x[4]):
+            tag = "🔴 市府有在寫入卻不變，高度可疑" if wrote else "❔ 待確認"
+            print(f"   {pk} {nm} 連續 {n} 筆都是 {v}/{tot}　{tag}")
+
+    if no_write:
+        print("\n🔴 這段期間市府完全沒有重新寫入（整批停擺時常見，非個別故障）：")
+        for pk, nm, v, tot in no_write[:8]:
+            print(f"   {pk} {nm} 停在 {v}/{tot}")
+        if len(no_write) > 8:
+            print(f"   ⋯⋯ 共 {len(no_write)} 場")
 
     # 市府端是否還在寫入
     if has_upd:
@@ -101,7 +120,9 @@ def main():
         print("\n（尚未收集 UPDATETIME 欄位，明天起的資料才有市府端寫入分析）")
 
     print("\n結論：", end="")
-    if len(moving) >= len(by) * 0.7:
+    if no_write and len(no_write) >= len(by) * 0.5:
+        print("市府端整批停止寫入，本站管線正常但拿不到新資料——這段期間的數字都是舊值。")
+    elif len(moving) >= len(by) * 0.7:
         print("整體資料流動正常。看到某場數字不動，多半是那一場真的滿位或本來就沒車位。")
     else:
         print("流動的場數偏低，建議檢查市府端寫入狀況與 cron。")
