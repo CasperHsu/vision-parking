@@ -18,6 +18,9 @@ os.makedirs("/var/lib/parking", exist_ok=True)
 con = sqlite3.connect(DB)
 con.execute("CREATE TABLE IF NOT EXISTS snap(ts INTEGER, parkno TEXT, free INTEGER, total INTEGER)")
 con.execute("CREATE INDEX IF NOT EXISTS idx_ts ON snap(ts)")
+# upd＝市府系統寫入該筆的時間；用來分辨「車位真的沒變」與「官方停止更新」
+if "upd" not in [r[1] for r in con.execute("PRAGMA table_info(snap)")]:
+    con.execute("ALTER TABLE snap ADD COLUMN upd TEXT")
 
 now = int(time.time())
 try:
@@ -28,11 +31,12 @@ rows = []
 for x in data:
     try:
         rows.append((now, str(x["PARKNO"]).zfill(3),
-                     int(x.get("FREEQUANTITY") or 0), int(x.get("TOTALQUANTITY") or 0)))
+                     int(x.get("FREEQUANTITY") or 0), int(x.get("TOTALQUANTITY") or 0),
+                     x.get("UPDATETIME") or None))
     except Exception:
         pass
 if rows:
-    con.executemany("INSERT INTO snap VALUES(?,?,?,?)", rows)
+    con.executemany("INSERT INTO snap(ts,parkno,free,total,upd) VALUES(?,?,?,?,?)", rows)
 con.execute("DELETE FROM snap WHERE ts < ?", (now - KEEP_DAYS * 86400,))
 
 # 天氣快照一起存（供日後做「雨天 vs 晴天車位差多少」的關聯分析）
