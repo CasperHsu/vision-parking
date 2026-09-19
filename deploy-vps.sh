@@ -71,13 +71,13 @@ else
   echo "（略過 TDX 加值資料：缺 /etc/parking-tdx.env 或 fetch-tdx.py）"
 fi
 
-# 5) 歷史統計：每 10 分鐘記錄快照到 SQLite、每小時彙整 stats.json（不呼叫外部 API）
+# 5) 歷史統計：每 2 分鐘記錄快照到 SQLite、每小時彙整 stats.json（不呼叫外部 API）
 if [ -f "$(dirname "$0")/log-parkstats.py" ]; then
   cp "$(dirname "$0")/log-parkstats.py" /usr/local/bin/log-parkstats.py
   chmod +x /usr/local/bin/log-parkstats.py
   mkdir -p /var/lib/parking
   /usr/local/bin/log-parkstats.py || true
-  ( { crontab -l 2>/dev/null | grep -v log-parkstats.py; } || true ; echo "*/10 * * * * /usr/local/bin/log-parkstats.py >/dev/null 2>&1" ) | crontab -
+  ( { crontab -l 2>/dev/null | grep -v log-parkstats.py; } || true ; echo "*/2 * * * * /usr/local/bin/log-parkstats.py >/dev/null 2>&1" ) | crontab -
 fi
 
 # 6) 學院即時天氣：每 10 分鐘抓 Open-Meteo（免金鑰）存 weather.json

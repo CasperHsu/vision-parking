@@ -378,7 +378,10 @@
       const d = new Date();
       const kind = (d.getDay()===0 || d.getDay()===6) ? "we" : "wd";
       const cell = s[kind] && s[kind][d.getHours()];
-      if(!cell || cell[1] < 8) return ""; // 樣本太少不顯示
+      // 門檻看「涵蓋幾個不同日子」：同一天取樣再密也只是一天的證據
+      const minD = stats.min_days || 2;
+      const days = cell[2]!=null ? cell[2] : Math.floor(cell[1]/6); // 舊格式回推
+      if(!cell || days < minD) return "";
       return `📊 近 ${stats.days||28} 天${kind==="we"?"週末":"平日"} ${d.getHours()} 點時段，通常剩約 <b>${cell[0]}</b> 位`;
     }catch(e){ return ""; }
   }
