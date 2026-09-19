@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#3B6347">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="視界停車">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>視界學院-即時停車系統</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Sans:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --ground:#F8F6F1; --surface:#FFFFFF; --line:#DCE2D9; --ink:#1B2721; --muted:#5F6E64;
+    --accent:#4A7C59; --accent-dark:#3B6347; --accent-ink:#FFFFFF; --soft:#E8F0EA;
+    --ok:#1E8A4E; --ok-soft:#E3F3EA; --warn:#B8790A; --warn-soft:#FBF0D9;
+    --hot:#C9511F; --hot-soft:#FBE6DC; --bad:#C43A2F; --bad-soft:#FADFDC;
+    --track:#E9EBE2;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0F1411; --surface:#171F1A; --line:#2A352E; --ink:#E8EFEA; --muted:#96A69B;
+      --accent:#7FB491; --accent-dark:#6B9C7A; --accent-ink:#0F1411; --soft:#1C2B21;
+      --ok:#4FC684; --ok-soft:#173224; --warn:#E0A63A; --warn-soft:#3A2D12;
+      --hot:#F0804F; --hot-soft:#3C2216; --bad:#F06A5E; --bad-soft:#3E1E1B;
+      --track:#26312A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0F1411; --surface:#171F1A; --line:#2A352E; --ink:#E8EFEA; --muted:#96A69B;
+    --accent:#7FB491; --accent-dark:#6B9C7A; --accent-ink:#0F1411; --soft:#1C2B21;
+    --ok:#4FC684; --ok-soft:#173224; --warn:#E0A63A; --warn-soft:#3A2D12;
+    --hot:#F0804F; --hot-soft:#3C2216; --bad:#F06A5E; --bad-soft:#3E1E1B;
+    --track:#26312A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;font-size:15px;line-height:1.5}
+  .num{font-family:"IBM Plex Sans","Noto Sans TC",sans-serif;font-variant-numeric:tabular-nums}
+  .wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:0 32px}
+
+  .top{position:sticky;top:0;z-index:10;margin-inline:-16px;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 13px;background:linear-gradient(110deg,#2D4A35 0%,#3B6347 45%,#4A7C59 100%);color:#FFF;display:flex;align-items:center;justify-content:space-between;gap:12px;border-radius:0 0 14px 14px;box-shadow:0 2px 10px rgba(45,74,53,.25);overflow:hidden}
+  .top::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);background-size:22px 22px;pointer-events:none;mask-image:linear-gradient(105deg,transparent 30%,#000 100%)}
+  .top>*{position:relative;z-index:1}
+  .live{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.14em;color:#CDEBD8;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:2px 8px;margin-left:8px;vertical-align:3px}
+  .live i{width:6px;height:6px;border-radius:50%;background:#7CFFA9;box-shadow:0 0 6px #7CFFA9;animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .brand{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:.16em;color:#DCEEE2;margin-bottom:4px}
+  .brand::before{content:"";width:4px;height:13px;background:#9FCCAF;border-radius:2px}
+  .top h1{font-size:21px;font-weight:900;margin:0;letter-spacing:.01em;color:#FFF}
+  .top .sub{font-size:12px;color:rgba(255,255,255,.78);margin-top:3px}
+  .refresh{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#FFF;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+  .refresh:hover{background:rgba(255,255,255,.22)}
+  .refresh:focus-visible{outline:2px solid #FFF;outline-offset:2px}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .refresh svg{width:14px;height:14px}
+  .refresh.spinning svg{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.refresh.spinning svg,.live i,.best,.bar i::after,.mk-center::after,.main .free.chg{animation:none}}
+
+  .notice{margin-top:12px;padding:10px 12px;border-radius:8px;font-size:13px;background:var(--warn-soft);color:var(--ink);border:1px solid transparent}
+  .notice.bad{background:var(--bad-soft)}
+
+  .rangebar{margin-top:14px;display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+  .rangebar .rlbl{font-size:13px;font-weight:700;white-space:nowrap}
+  .rangebar input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
+  .rangebar .rval{font-size:13px;font-weight:600;color:var(--accent-dark);white-space:nowrap;min-width:52px;text-align:right}
+  .mapbox{margin-top:14px;position:relative;z-index:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+  #map{height:320px}
+  .yb-btn{position:absolute;top:10px;right:10px;z-index:900;font:inherit;font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .yb-btn.on{background:#0E7490;border-color:#0E7490;color:#FFF}
+  .mk.ybm{background:#0E7490}
+
+  .fb-line{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:18px;padding:12px 16px;border-radius:999px;background:#06C755;color:#FFF;font-size:14.5px;font-weight:700;text-decoration:none;box-shadow:0 3px 10px rgba(6,199,85,.3)}
+  .fb-line:hover{filter:brightness(1.06)}
+
+  .grow{display:block;margin-top:8px;font:inherit;font-size:12.5px;font-weight:700;color:var(--accent-dark);background:var(--surface);border:1px dashed var(--accent);border-radius:8px;padding:7px 10px;cursor:pointer;text-align:left}
+  .grow-tip{margin-top:8px;font-size:12px;color:var(--muted)}
+
+  .intro{position:fixed;inset:0;z-index:2000;background:rgba(15,20,17,.55);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+  .intro[hidden]{display:none}
+  .intro-card{max-width:430px;background:var(--surface);border-radius:16px;padding:22px 20px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+  .intro-card .brand{color:var(--accent-dark)}
+  .intro-card .brand::before{background:var(--accent)}
+  .intro-card h2{margin:2px 0 4px;font-size:21px;font-weight:900}
+  .intro-sub{margin:0 0 14px;font-size:13px;color:var(--muted)}
+  .intro-list{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:11px}
+  .intro-list li{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.5;color:var(--muted)}
+  .intro-list li span{flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--soft);border-radius:9px;font-size:16px}
+  .intro-list b{font-size:13.5px;color:var(--ink)}
+  .intro-fine{margin:0 0 12px;font-size:10.5px;line-height:1.55;color:var(--muted);background:var(--ground);border-radius:8px;padding:8px 10px}
+  .intro-ok{display:block;width:100%;margin-top:6px;font:inherit;font-size:15px;font-weight:700;padding:12px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+  .mk{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:2px solid #FFF;box-shadow:0 1px 5px rgba(0,0,0,.35);font-family:"IBM Plex Sans","Noto Sans TC",sans-serif;font-size:12.5px;font-weight:600;color:#FFF}
+  .mk.ok{background:var(--ok)} .mk.warn{background:var(--warn)} .mk.hot{background:var(--hot)} .mk.bad,.mk.full{background:var(--bad)} .mk.na{background:#98A29B}
+  .mk-center{position:relative;padding:5px 11px;border-radius:999px;background:#FFF;border:2px solid #3B6347;color:#2D4A35;font-weight:900;font-size:12.5px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  .mk-center::after{content:"";position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;border:2px solid rgba(74,124,89,.6);transform:translate(-50%,-50%);animation:ring 2.4s ease-out infinite;pointer-events:none}
+  @keyframes ring{0%{width:12px;height:12px;opacity:1}100%{width:96px;height:96px;opacity:0}}
+  .leaflet-popup-content{font-family:"Noto Sans TC",sans-serif;font-size:13px;line-height:1.6;margin:10px 14px}
+  .leaflet-popup-content b{font-size:14px}
+  .leaflet-container a.pop-nav{color:#3B6347;font-weight:700}
+
+  .best{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--soft);border:1px solid var(--accent);display:flex;align-items:center;justify-content:space-between;gap:12px;animation:bestGlow 3s ease-in-out infinite}
+  .best[hidden]{display:none}
+  .best .lbl b{color:var(--accent-dark);font-weight:700}
+  .best .n.low{color:var(--bad)}
+  @keyframes bestGlow{50%{box-shadow:0 0 14px 2px rgba(74,124,89,.3)}}
+  .best .lbl{font-size:12px;color:var(--muted);letter-spacing:.04em}
+  .best .who{font-size:16px;font-weight:700;margin-top:2px}
+  .best .who small{font-size:12.5px;color:var(--muted);font-weight:500}
+  .best .who .bnote{font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);padding:2px 7px;border-radius:6px;vertical-align:1px;white-space:nowrap}
+  .best .n{font-size:26px;font-weight:600;color:var(--accent-dark);white-space:nowrap}
+  .best .n small{font-size:13px;color:var(--muted);font-weight:500;margin-left:4px}
+
+  .lots{display:grid;gap:14px;margin-top:14px}
+  .lot{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px;position:relative;overflow:hidden;transition:transform .18s ease,box-shadow .18s ease}
+  .lot::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent 72%)}
+  @media (hover:hover){.lot:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(45,74,53,.14)}}
+  .lot-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .lot-head h2{margin:0;font-size:17px;font-weight:700;text-wrap:balance}
+  .lot-head .addr{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .lot-head .addr b{color:var(--accent-dark);font-weight:600}
+  .pill{flex:none;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;letter-spacing:.02em;white-space:nowrap}
+  .pill.ok{background:var(--ok-soft);color:var(--ok)}
+  .pill.warn{background:var(--warn-soft);color:var(--warn)}
+  .pill.hot{background:var(--hot-soft);color:var(--hot)}
+  .pill.bad{background:var(--bad-soft);color:var(--bad)}
+  .pill.full{background:var(--bad);color:#FFF}
+  .pill.na{background:var(--track);color:var(--muted)}
+
+  .main{display:flex;align-items:baseline;gap:8px}
+  .main .free{font-size:44px;font-weight:600;line-height:1}
+  .main .free.chg{animation:blip .8s ease}
+  @keyframes blip{0%{text-shadow:0 0 14px currentColor}100%{text-shadow:none}}
+  .main .free.ok{color:var(--ok)} .main .free.warn{color:var(--warn)} .main .free.hot{color:var(--hot)} .main .free.bad,.main .free.full{color:var(--bad)}
+  .main .total{font-size:15px;color:var(--muted)}
+  .bar{height:8px;border-radius:999px;background:var(--track);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:999px;width:0;transition:width .4s ease;position:relative;overflow:hidden}
+  .bar i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);transform:translateX(-100%);animation:sweep 3s ease-in-out infinite}
+  @keyframes sweep{55%,100%{transform:translateX(100%)}}
+  .bar i.ok{background:var(--ok)} .bar i.warn{background:var(--warn)} .bar i.hot{background:var(--hot)} .bar i.bad,.bar i.full{background:var(--bad)}
+
+  .qwarn{font-size:12.5px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:6px 10px;font-weight:600}
+  .hist{font-size:12px;color:var(--muted);background:var(--ground);border-radius:8px;padding:6px 10px}
+  .hist b{color:var(--accent-dark)}
+  .types{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+  .type{background:var(--ground);border-radius:8px;padding:8px 10px}
+  .type.ev{background:var(--soft);border:1px solid var(--accent)}
+  .type.ev .k{color:var(--accent-dark);font-weight:700}
+  .type.ev .v{color:var(--accent-dark)}
+  .type .k{font-size:11.5px;color:var(--muted)}
+  .type .v{font-size:16px;font-weight:600;margin-top:1px}
+  .type .v small{font-size:12px;color:var(--muted);font-weight:500}
+
+  dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px;border-top:1px solid var(--line);padding-top:12px}
+  dt{color:var(--muted);white-space:nowrap}
+  dd{margin:0;white-space:pre-line}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:13.5px;font-weight:600;padding:9px 14px;border-radius:8px;border:1px solid var(--line);color:var(--ink);background:var(--surface)}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  .stamp{font-size:12px;color:var(--muted)}
+  .foot{margin-top:20px;font-size:12px;color:var(--muted);line-height:1.6}
+  .foot p{margin:0 0 8px}
+  .foot a{color:inherit}
+  .skeleton .free{color:var(--muted)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">視界學院 VISIONECO</div>
+      <h1>即時停車系統 <span class="live"><i></i>LIVE</span></h1>
+      <div class="sub" id="status">讀取官方即時資料…</div>
+    </div>
+    <button class="refresh" id="refresh" type="button" aria-label="重新整理">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+      <span id="countdown" class="num">更新</span>
+    </button>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="best" id="best" hidden>
+    <div>
+      <div class="lbl" id="best-lbl">統計中…</div>
+      <div class="who" id="best-name">—</div>
+    </div>
+    <div class="n num" id="best-n"><span id="best-free">—</span><small>個空位</small></div>
+  </section>
+
+  <section class="rangebar">
+    <span class="rlbl">顯示範圍</span>
+    <input type="range" id="radius" min="100" max="1000" step="100" value="500" aria-label="顯示範圍（公尺）">
+    <span class="rval num" id="radius-val">500 m</span>
+  </section>
+
+  <section class="mapbox" id="mapbox" aria-label="停車場地圖">
+    <button class="yb-btn" id="yb-btn" type="button" aria-pressed="false">🚲 YouBike</button>
+    <div id="map"></div>
+  </section>
+
+  <main class="lots" id="lots"></main>
+
+  <a class="fb-line" href="https://lin.ee/OdmqqiW" target="_blank" rel="noopener">💬 資料有誤或想回饋？點我開視界學院 LINE</a>
+
+  <footer class="foot">
+    <p>範圍：以視界學院（新竹市北區中正路107號）為中心，顯示範圍可用上方滑桿調整（100 m〜1 公里，預設 500 m），只列官方 API 有即時資料的停車場，依距離由近到遠排列；步行時間以每分鐘 80 公尺、路線係數 1.3 估算。</p>
+    <p>資料來源：新竹市政府交通處停管科開放資料（<a href="https://hispark.hccg.gov.tw/OpenData/GetParkInfo" target="_blank" rel="noopener">hispark.hccg.gov.tw</a>，與官方「新竹市好停車」App 相同來源）；YouBike 資料來源：交通部 TDX 運輸資料流通服務；地圖圖資 © OpenStreetMap 貢獻者。</p>
+    <p>即時性說明：本頁每 20 秒自動更新，但市府系統每筆停車場資料約 1〜3 分鐘才寫入一次，且尖峰時段數字可能瞬間大幅變動，因此畫面數字與現場實況可能有數分鐘落差；「官方更新」欄位為市府系統寫入該筆資料的時間。</p>
+    <p>免責聲明：本頁面由視界學院整理提供，僅供行前參考。車位數量隨時變動，實際以現場為準；視界學院不保證資料之即時性、正確性與完整性，亦不對使用本頁面資訊所生之任何損害負責。</p>
+  </footer>
+</div>
+
+<div class="intro" id="intro" hidden>
+  <div class="intro-card">
+    <div class="brand">視界學院 VISIONECO</div>
+    <h2>即時停車系統</h2>
+    <p class="intro-sub">提供視界學院學員，上課前快速找車位</p>
+    <ul class="intro-list">
+      <li><span>📍</span><div><b>周邊停車場即時空位</b><br>以學院為中心，範圍 100 m〜1 公里可調</div></li>
+      <li><span>🧭</span><div><b>自動建議去哪停</b><br>有位的排最前面；車位少會提醒排隊或擴大範圍</div></li>
+      <li><span>🚲</span><div><b>YouBike 站點資訊</b><br>地圖右上角可開啟，顯示各站可借車數</div></li>
+      <li><span>⏱</span><div><b>每 20 秒自動更新</b><br>官方系統約 1〜3 分鐘寫入一次，數字可能有落差</div></li>
+    </ul>
+    <p class="intro-fine">免責聲明：本頁僅供行前參考，車位隨時變動、以現場為準；視界學院不保證資料之即時性與正確性，亦不對使用本頁資訊所生損害負責。</p>
+    <button class="intro-ok" id="intro-ok" type="button">我知道了，開始使用</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const API = "https://hispark.hccg.gov.tw/OpenData/GetParkInfo";
+  // 視界學院：新竹市北區中正路107號（聯邦銀行大樓）
+  const CENTER = { lat:24.80725, lng:120.96794 };
+  const RADIUS_MIN = 100, RADIUS_MAX = 1000, RADIUS_DEF = 500; // 顯示範圍可調，預設 500 m
+  // 這三場有人工確認過的 Google Maps 短網址，其餘場用座標產生連結
+  const NAV = {
+    "004":"https://maps.app.goo.gl/wfEDpDjjkpjxYfDh6",
+    "081":"https://maps.app.goo.gl/ABqHWkopijaAXnAG7",
+    "089":"https://maps.app.goo.gl/YMfcTTBWCw1HB92h9",
+  };
+  const FALLBACK_IDS = ["004","081","089"]; // 官方資料座標壞掉時的保底名單
+  const TYPES = [
+    // FDY 欄位官方無公開說明且即時數恆為 0，先不顯示
+    ["ECAR","電動車充電位"],["MOT","機車"],["DIS","身心障礙"],["CW","婦幼／親子"],["BIG","大型車"]
+  ];
+  const INTERVAL = 20;
+  const lotsEl = document.getElementById("lots");
+  const statusEl = document.getElementById("status");
+  const noticeEl = document.getElementById("notice");
+  const bestEl = document.getElementById("best");
+  const btn = document.getElementById("refresh");
+  const cd = document.getElementById("countdown");
+  let timer = null, left = INTERVAL, busy = false;
+  let radiusM = RADIUS_DEF, lastData = null, lastVia = "";
+  let stats = null; // 歷史統計（VPS 每小時彙整近 28 天平日/週末×小時平均）
+
+  // ---- fetch: direct first, then public CORS relays ----
+  async function getJSON(url, parse){
+    const r = await fetch(url, {cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const t = await r.text();
+    return parse ? parse(t) : JSON.parse(t);
+  }
+  const ROUTES = [
+    // 若把這個檔案放在自己的主機上，並用 cron 每分鐘把官方 JSON 存成同目錄的 parkinfo.json，就走這條（最穩，不依賴第三方中繼）
+    { name:"主機快取 parkinfo.json", run:()=>getJSON("./parkinfo.json") },
+    { name:"官方直連", run:()=>getJSON(API) },
+    { name:"cors.eu.org 中繼", run:()=>getJSON("https://cors.eu.org/"+API) },
+    { name:"r.jina.ai 中繼", run:()=>getJSON("https://r.jina.ai/"+API, t=>{ const i=t.indexOf("["); const j=t.lastIndexOf("]"); return JSON.parse(t.slice(i,j+1)); }) },
+  ];
+  async function load(){
+    let lastErr;
+    for(const rt of ROUTES){
+      try{ const data = await rt.run(); if(Array.isArray(data) && data.length) return {data, via:rt.name}; }
+      catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error("no route");
+  }
+
+  // ---- helpers ----
+  const n = v => Number(v)||0;
+  function distM(lat,lng){
+    const R = 6371000, r = x => x*Math.PI/180;
+    const a = Math.sin(r(lat-CENTER.lat)/2)**2 + Math.cos(r(CENTER.lat))*Math.cos(r(lat))*Math.sin(r(lng-CENTER.lng)/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+  const fmtDist = m => m<995 ? (Math.round(m/10)*10)+" m" : (m/1000).toFixed(1)+" km";
+  const walkMin = m => Math.max(1, Math.round(m*1.3/80)); // 每分鐘 80 公尺、路線係數 1.3
+  function level(free,total){
+    if(!total) return "na";
+    if(free<=0) return "full";
+    const p = free/total;
+    if(p>.6) return "ok"; if(p>.4) return "warn"; if(p>.2) return "hot"; return "bad";
+  }
+  const LABEL = {ok:"充裕",warn:"尚可",hot:"偏少",bad:"接近滿位",full:"已滿",na:"無資料"};
+  function fmtTime(s){
+    if(!s) return "—";
+    const d = new Date(s);
+    if(isNaN(d)) return s;
+    const p = x=>String(x).padStart(2,"0");
+    return `${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  function splitFee(s){
+    s = (s||"").replace(/\r/g,"").trim();
+    const idx = s.indexOf("充電設備資訊");
+    if(idx<0) return {fee:s, charge:""};
+    return {fee:s.slice(0,idx).replace(/[\s，,]+$/,""), charge:s.slice(idx).replace(/^充電設備資訊[：:]?\s*/,"").trim()};
+  }
+  function heightOf(s){ const m=(s||"").match(/限高\s*([0-9.]+\s*(cm|公分|m|公尺)?)/); return m?m[1].trim():""; }
+  function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+  // ---- render ----
+  function skeleton(){
+    lotsEl.innerHTML = Array.from({length:3}).map(()=>`
+      <article class="lot skeleton">
+        <div class="lot-head"><div><h2>載入中…</h2><div class="addr">讀取官方資料中</div></div><span class="pill na">—</span></div>
+        <div class="main num"><span class="free">—</span><span class="total">/ — 汽車位</span></div>
+        <div class="bar"><i class="na"></i></div>
+      </article>`).join("");
+  }
+  // 空位數字變動時做 600ms 跑數動畫＋短暫發光
+  const prevFree = {};
+  function animateNumbers(){
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.querySelectorAll(".lot").forEach(a=>{
+      const el = a.querySelector(".free"); if(!el) return;
+      const id = a.dataset.parkno, target = parseInt(el.textContent,10);
+      const prev = prevFree[id]; prevFree[id] = target;
+      if(reduce || prev==null || !isFinite(target) || prev===target) return;
+      el.classList.add("chg");
+      const t0 = performance.now(), dur = 600;
+      const step = now=>{
+        const p = Math.min(1,(now-t0)/dur);
+        el.textContent = Math.round(prev + (target-prev)*(1-Math.pow(1-p,3)));
+        if(p<1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  function histFor(id){
+    try{
+      const s = stats && stats.stats && stats.stats[id];
+      if(!s) return "";
+      const d = new Date();
+      const kind = (d.getDay()===0 || d.getDay()===6) ? "we" : "wd";
+      const cell = s[kind] && s[kind][d.getHours()];
+      if(!cell || cell[1] < 8) return ""; // 樣本太少不顯示
+      return `📊 近 ${stats.days||28} 天${kind==="we"?"週末":"平日"} ${d.getHours()} 點時段，通常剩約 <b>${cell[0]}</b> 位`;
+    }catch(e){ return ""; }
+  }
+
+  function stockOf(x){
+    const carTotal = n(x.TOTALQUANTITY);
+    const motoOnly = !carTotal && n(x.TOTALQUANTITYMOT)>0;
+    const free = motoOnly ? n(x.FREEQUANTITYMOT) : n(x.FREEQUANTITY);
+    const total = motoOnly ? n(x.TOTALQUANTITYMOT) : carTotal;
+    return { free, total, motoOnly, unit: motoOnly?"機車位":"汽車位", lv: level(free,total) };
+  }
+
+  // ---- 地圖 ----
+  let map=null, markersLayer=null, ring=null;
+  const ringBounds = () => L.latLng(CENTER.lat,CENTER.lng).toBounds(radiusM*2); // 不依賴地圖投影，未 setView 也能算
+  function initMap(){
+    if(map || typeof L==="undefined") return;
+    try{
+      map = L.map("map",{center:[CENTER.lat,CENTER.lng],zoom:15,scrollWheelZoom:false,dragging:!("ontouchstart" in window)});
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+      ring = L.circle([CENTER.lat,CENTER.lng],{radius:radiusM,color:"#4A7C59",weight:1.5,fillColor:"#4A7C59",fillOpacity:.07}).addTo(map);
+      L.marker([CENTER.lat,CENTER.lng],{interactive:false,zIndexOffset:1000,icon:L.divIcon({className:"",html:'<div class="mk-center">視界學院</div>',iconSize:[0,0],iconAnchor:[36,14]})}).addTo(map);
+      markersLayer = L.layerGroup().addTo(map);
+      map.fitBounds(ringBounds(),{padding:[6,6]});
+    }catch(e){ console.warn("地圖初始化失敗", e); map=null; document.getElementById("mapbox").hidden = true; }
+  }
+  function updateMap(list){
+    if(typeof L==="undefined"){ document.getElementById("mapbox").hidden = true; return; }
+    initMap();
+    if(!map) return;
+    if(ring.getRadius()!==radiusM){ ring.setRadius(radiusM); map.fitBounds(ringBounds(),{padding:[6,6]}); }
+    markersLayer.clearLayers();
+    list.forEach(it=>{
+      if(!isFinite(it.d)) return;
+      const s = stockOf(it.x);
+      const icon = L.divIcon({className:"",html:`<div class="mk ${s.lv}">${s.total?s.free:"—"}</div>`,iconSize:[34,34],iconAnchor:[17,17]});
+      const dir = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(it.x.LATITUDE+","+it.x.LONGITUDE)}`;
+      L.marker([it.lat,it.lng],{icon}).addTo(markersLayer).bindPopup(
+        `<b>${esc(it.x.PARKINGNAME)}</b><br>剩 ${s.free} / ${s.total} ${s.unit}（${LABEL[s.lv]}${!s.motoOnly&&s.free>0&&s.free<3?"・可能排隊":""}）<br>距視界學院 ${fmtDist(it.d)}・步行約 ${walkMin(it.d)} 分<br><a class="pop-nav" href="${esc(dir)}" target="_blank" rel="noopener">導航到這裡 →</a>`);
+    });
+  }
+
+  // ---- YouBike 圖層（預設關，使用者手動開） ----
+  let ybOn = false, ybLayer = null;
+  try{ ybOn = localStorage.getItem("hcpark.yb")==="1"; }catch(e){}
+  const ybBtn = document.getElementById("yb-btn");
+  function setYbBtn(){ ybBtn.classList.toggle("on", ybOn); ybBtn.setAttribute("aria-pressed", ybOn?"true":"false"); }
+  async function loadYoubike(){
+    if(!map || typeof L==="undefined") return;
+    if(!ybLayer) ybLayer = L.layerGroup();
+    if(!ybOn){ map.removeLayer(ybLayer); return; }
+    try{
+      const j = await getJSON("./youbike.json");
+      ybLayer.clearLayers();
+      (j.stations||[]).forEach(s=>{
+        if(s.d<=500) return; // 500 m 內用走的就好，只顯示遠端停車才用得到的站
+        const icon = L.divIcon({className:"",html:`<div class="mk ybm">${s.rent==null?"—":s.rent}</div>`,iconSize:[34,34],iconAnchor:[17,17]});
+        L.marker([s.lat,s.lng],{icon}).addTo(ybLayer).bindPopup(
+          `<b>🚲 ${esc(s.name)}</b><br>可借 ${s.rent==null?"—":s.rent}（電輔 ${s.ebike==null?0:s.ebike}）・可還 ${s.ret==null?"—":s.ret}<br>距視界學院 ${fmtDist(s.d)}・步行約 ${walkMin(s.d)} 分`);
+      });
+      ybLayer.addTo(map);
+    }catch(e){}
+  }
+
+  function render(data, via){
+    lastData = data; lastVia = via;
+    const items = data.map(x=>{
+      const id = String(x.PARKNO).padStart(3,"0");
+      const lat = parseFloat(x.LATITUDE), lng = parseFloat(x.LONGITUDE);
+      const okGeo = isFinite(lat) && isFinite(lng) && lat>23 && lat<26 && lng>119.5 && lng<122.5;
+      return { x, id, lat, lng, d: okGeo ? distM(lat,lng) : Infinity };
+    });
+    const anyGeo = items.some(it=>isFinite(it.d));
+    const availRank = it => stockOf(it.x).free>0 ? 0 : 1; // 有位的排前面
+    let list = items.filter(it=>it.d<=radiusM).sort((a,b)=>(availRank(a)-availRank(b)) || (a.d-b.d));
+    if(!anyGeo) list = items.filter(it=>FALLBACK_IDS.includes(it.id)); // 官方座標整批壞掉時的保底
+    // 摘要＋推薦：範圍內總空位；少→建議排隊、多→建議停哪場；只剩電動／身障要註明
+    const carLots = list.filter(it=>n(it.x.TOTALQUANTITY)>0);
+    const totalFree = carLots.reduce((s2,it)=>s2+n(it.x.FREEQUANTITY),0);
+    let rec = null;
+    const comfy = carLots.find(it=>n(it.x.FREEQUANTITY)>=3);
+    const any = carLots.find(it=>n(it.x.FREEQUANTITY)>0);
+    if(comfy) rec = {mode:"go", it:comfy, free:n(comfy.x.FREEQUANTITY)};
+    else if(any) rec = {mode:"queue", it:any, free:n(any.x.FREEQUANTITY)};
+    else{
+      const sp = carLots.find(it=>n(it.x.FREEQUANTITYECAR)>0 || n(it.x.FREEQUANTITYDIS)>0);
+      if(sp){
+        const e=n(sp.x.FREEQUANTITYECAR), ds=n(sp.x.FREEQUANTITYDIS);
+        const notes=[]; if(e>0) notes.push("電動車位"); if(ds>0) notes.push("身障位");
+        rec = {mode:"special", it:sp, free:e+ds, note:"只剩"+notes.join("／")};
+      }else if(carLots.length) rec = {mode:"none", it:carLots[0], free:0};
+    }
+    // 空位很少／全滿時，找目前範圍外、1 公里內最近的有位停車場，給一鍵擴大
+    let grow = null;
+    if(rec && rec.mode!=="go" && radiusM < RADIUS_MAX){
+      const cand = items.filter(it=>it.d>radiusM && it.d<=RADIUS_MAX && n(it.x.TOTALQUANTITY)>0 && n(it.x.FREEQUANTITY)>=3)
+                        .sort((a,b)=>a.d-b.d)[0];
+      if(cand) grow = {r: Math.min(RADIUS_MAX, Math.ceil(cand.d/100)*100), name: cand.x.PARKINGNAME, free: n(cand.x.FREEQUANTITY), d: cand.d};
+    }
+    lotsEl.innerHTML = list.length ? list.map(it=>{
+      const x = it.x, s = stockOf(x);
+      const pct = s.total? Math.max(0,Math.min(100,s.free/s.total*100)) : 0;
+      const wd = splitFee(x.WEEKDAYS), hd = splitFee(x.HOLIDAY);
+      const charge = hd.charge || wd.charge;
+      const h = heightOf(x.WEEKDAYS)||heightOf(x.HOLIDAY);
+      const types = TYPES.filter(([k])=>!(s.motoOnly&&k==="MOT") && n(x["TOTALQUANTITY"+k])>0).map(([k,name])=>{
+        const f=n(x["FREEQUANTITY"+k]), t=n(x["TOTALQUANTITY"+k]);
+        const ev = k==="ECAR";
+        return `<div class="type${ev?" ev":""}"><div class="k">${ev?"⚡ ":""}${name}</div><div class="v num">${f} <small>/ ${t}</small></div></div>`;
+      }).join("");
+      const nav = NAV[it.id] || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(it.lat+","+it.lng)}`;
+      const dir = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(x.LATITUDE+","+x.LONGITUDE)}`;
+      const distTxt = isFinite(it.d) ? `<b>距視界學院 ${fmtDist(it.d)}・步行約 ${walkMin(it.d)} 分</b>` : "";
+      const addr = [esc(x.ADDRESS||""), distTxt].filter(Boolean).join(" · ");
+      return `
+      <article class="lot" data-parkno="${esc(x.PARKNO)}">
+        <div class="lot-head">
+          <div><h2>${esc(x.PARKINGNAME)}</h2><div class="addr">${addr}</div></div>
+          <span class="pill ${s.lv}">${LABEL[s.lv]}</span>
+        </div>
+        <div class="main num"><span class="free ${s.lv}">${s.free}</span><span class="total">/ ${s.total} ${s.unit}</span></div>
+        <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${s.total}" aria-valuenow="${s.free}" aria-label="剩餘${s.unit}"><i class="${s.lv}" style="width:${pct.toFixed(1)}%"></i></div>
+        ${!s.motoOnly && s.free>0 && s.free<3 ? `<div class="qwarn">⚠ 剩不到 3 位，可能有人在排隊，抵達時不一定有位</div>` : ""}
+        ${!s.motoOnly && histFor(it.id) ? `<div class="hist">${histFor(it.id)}</div>` : ""}
+        ${types?`<div class="types">${types}</div>`:""}
+        <dl>
+          <dt>平日</dt><dd>${esc(wd.fee||"—")}</dd>
+          <dt>假日</dt><dd>${esc(hd.fee||"—")}</dd>
+          ${h?`<dt>限高</dt><dd>${esc(h)}</dd>`:""}
+          ${charge?`<dt>充電</dt><dd>${esc(charge)}</dd>`:""}
+          <dt>營業</dt><dd>${esc(x.BUSINESSHOURS||"—")}</dd>
+          <dt>官方更新</dt><dd class="num">${esc(fmtTime(x.UPDATETIME))}</dd>
+        </dl>
+        <div class="actions">
+          <a class="btn primary" href="${esc(nav)}" target="_blank" rel="noopener">Google 地圖</a>
+          <a class="btn" href="${dir}" target="_blank" rel="noopener">導航到這裡</a>
+        </div>
+      </article>`;
+    }).join("") : `<div class="notice">這個範圍內沒有官方即時資料的停車場，把上面的「顯示範圍」拉大一點試試。</div>`;
+    bestEl.hidden = !rec;
+    if(rec){
+      const x = rec.it.x;
+      const meta = isFinite(rec.it.d) ? ` <small>${fmtDist(rec.it.d)}・步行約 ${walkMin(rec.it.d)} 分</small>` : "";
+      document.getElementById("best-lbl").innerHTML = `學院 ${fmtDist(radiusM)} 內合計 <b>${totalFree}</b> 個汽車空位`;
+      let who;
+      if(rec.mode==="go") who = `建議停 ${esc(x.PARKINGNAME)}${meta}`;
+      else if(rec.mode==="queue") who = `空位極少，建議直接到 ${esc(x.PARKINGNAME)} 排隊${meta} <span class="bnote">抵達時不一定有位</span>`;
+      else if(rec.mode==="special") who = `${esc(x.PARKINGNAME)}${meta} <span class="bnote">${esc(rec.note)}</span>`;
+      else who = `目前全滿，建議到最近的 ${esc(x.PARKINGNAME)} 排隊等位${meta}`;
+      if(rec.mode!=="go"){
+        if(grow) who += `<button type="button" class="grow" id="grow-btn" data-r="${grow.r}">或擴大範圍：${esc(grow.name)}（${fmtDist(grow.d)}）還有 ${grow.free} 位，點我擴大 →</button>`;
+        else if(radiusM<RADIUS_MAX) who += `<div class="grow-tip">也可以把上方「顯示範圍」拉大找更遠的停車場</div>`;
+        else who += `<div class="grow-tip">1 公里內目前都很滿，建議提早出發排隊</div>`;
+      }
+      document.getElementById("best-name").innerHTML = who;
+      document.getElementById("best-free").textContent = rec.free;
+      document.getElementById("best-n").classList.toggle("low", rec.free<3);
+      const gb = document.getElementById("grow-btn");
+      if(gb) gb.onclick = ()=>{
+        radiusM = +gb.dataset.r;
+        radEl.value = radiusM; radVal.textContent = fmtDist(radiusM);
+        try{ localStorage.setItem("hcpark.radius", radiusM); }catch(e){}
+        if(lastData) render(lastData, lastVia);
+      };
+    }
+    animateNumbers();
+    updateMap(list);
+    loadYoubike();
+    const now = new Date(); const p=x=>String(x).padStart(2,"0");
+    statusEl.textContent = `頁面更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())} · ${fmtDist(radiusM)} 內 ${list.length} 場 · 經由${via}`;
+    try{ localStorage.setItem("hcpark.last", JSON.stringify({t:now.toISOString(), data})); }catch(e){}
+  }
+
+  async function refresh(){
+    if(busy) return; busy=true; btn.classList.add("spinning"); noticeEl.hidden=true;
+    try{
+      const {data, via} = await load();
+      render(data, via);
+    }catch(e){
+      noticeEl.hidden=false; noticeEl.className="notice bad";
+      noticeEl.textContent="抓不到官方資料（"+(e&&e.message?e.message:"連線失敗")+"）。下方若有數字是上次成功抓到的，請按右上角重試。";
+      statusEl.textContent="連線失敗";
+    }finally{ busy=false; btn.classList.remove("spinning"); left=INTERVAL; }
+  }
+  function tick(){ left--; cd.textContent = left>0 ? `${left}s` : "更新中"; if(left<=0){ refresh(); } }
+
+  btn.addEventListener("click", ()=>{ left=INTERVAL; refresh(); });
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) refresh(); });
+
+  // ---- 顯示範圍滑桿 ----
+  const radEl = document.getElementById("radius"), radVal = document.getElementById("radius-val");
+  try{
+    const saved = parseInt(localStorage.getItem("hcpark.radius"),10);
+    if(saved>=RADIUS_MIN && saved<=RADIUS_MAX) radiusM = saved;
+  }catch(e){}
+  radEl.value = radiusM; radVal.textContent = fmtDist(radiusM);
+  radEl.addEventListener("input", ()=>{ radVal.textContent = fmtDist(+radEl.value); });
+  radEl.addEventListener("change", ()=>{
+    radiusM = +radEl.value;
+    try{ localStorage.setItem("hcpark.radius", radiusM); }catch(e){}
+    if(lastData) render(lastData, lastVia);
+  });
+
+  ybBtn.addEventListener("click", ()=>{
+    ybOn = !ybOn;
+    try{ localStorage.setItem("hcpark.yb", ybOn?"1":"0"); }catch(e){}
+    setYbBtn(); loadYoubike();
+  });
+  setYbBtn();
+
+  // 首次進入導覽（看過一次就不再出現）
+  try{
+    if(!localStorage.getItem("hcpark.intro")){
+      const iv = document.getElementById("intro");
+      iv.hidden = false;
+      document.getElementById("intro-ok").addEventListener("click", ()=>{
+        iv.hidden = true;
+        try{ localStorage.setItem("hcpark.intro","1"); }catch(e){}
+      });
+    }
+  }catch(e){}
+
+  // 歷史統計：載入一次＋每小時更新（沒有檔案就靜默略過）
+  function loadStats(){
+    getJSON("./stats.json").then(j=>{ stats=j; if(lastData) render(lastData,lastVia); }).catch(()=>{});
+  }
+  loadStats();
+  setInterval(loadStats, 3600000);
+
+  skeleton();
+  try{
+    const cached = JSON.parse(localStorage.getItem("hcpark.last")||"null");
+    if(cached && Array.isArray(cached.data)){ render(cached.data, "上次快取"); noticeEl.hidden=false; noticeEl.className="notice"; noticeEl.textContent="先顯示上次抓到的數字（"+fmtTime(cached.t)+"），正在更新…"; }
+  }catch(e){}
+  refresh();
+  timer = setInterval(tick, 1000);
+})();
+</script>
+</html>
