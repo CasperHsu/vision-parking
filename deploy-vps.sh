@@ -88,4 +88,16 @@ if [ -f "$(dirname "$0")/fetch-weather.py" ]; then
   ( { crontab -l 2>/dev/null | grep -v fetch-weather.py; } || true ; echo "*/10 * * * * /usr/local/bin/fetch-weather.py >/dev/null 2>&1" ) | crontab -
 fi
 
+# 7) 訪客長期統計：每小時把 nginx 紀錄萃取成每日彙總（log 只留 14 天，這裡永久保存）
+for f in log-visitors.py visitor-report.py; do
+  if [ -f "$(dirname "$0")/$f" ]; then
+    cp "$(dirname "$0")/$f" /usr/local/bin/$f
+    chmod +x /usr/local/bin/$f
+  fi
+done
+if [ -f /usr/local/bin/log-visitors.py ]; then
+  /usr/local/bin/log-visitors.py || true
+  ( { crontab -l 2>/dev/null | grep -v log-visitors.py; } || true ; echo "7 * * * * /usr/local/bin/log-visitors.py >/dev/null 2>&1" ) | crontab -
+fi
+
 echo "完成。開啟 https://visionecoparking.visioneco.tw/"
