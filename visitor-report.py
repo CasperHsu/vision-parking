@@ -1,57 +1,70 @@
 #!/usr/bin/env python3
 """視界停車：訪客統計報表　用法 sudo visitor-report.py [天數，預設 30]"""
-import sqlite3, sys
+import json, sqlite3, sys
 from datetime import datetime, timedelta, timezone
 
 TW = timezone(timedelta(hours=8))
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 30
 con = sqlite3.connect("/var/lib/parking/visitors.db")
-rows = con.execute("SELECT * FROM daily ORDER BY d DESC LIMIT ?", (N,)).fetchall()
+cols = [c[1] for c in con.execute("PRAGMA table_info(daily)")]
+rows = [dict(zip(cols, r)) for r in con.execute("SELECT * FROM daily ORDER BY d DESC LIMIT ?", (N,))][::-1]
 if not rows:
     print("尚無資料"); raise SystemExit
-cols = [c[1] for c in con.execute("PRAGMA table_info(daily)")]
-rows = [dict(zip(cols, r)) for r in rows][::-1]
+names = {}
+try:
+    for x in json.load(open("/var/www/parking/parkinfo.json")):
+        names[str(x["PARKNO"]).zfill(3)] = x["PARKINGNAME"].replace("停車場", "")
+except Exception:
+    pass
+new = [r for r in rows if r.get("basis") == "tw"]
+legacy = [r for r in rows if r.get("basis") != "tw"]
 
-print("═" * 62)
-print("  視界停車 · 使用統計")
-print(f"  產生時間 {datetime.now(TW):%Y-%m-%d %H:%M}")
-print("═" * 62)
-print(f"\n【每日明細】（最近 {len(rows)} 天）\n")
-print("  日期          訪客   開啟頁面   查詢次數   主要裝置")
-print("  " + "─" * 56)
+print("═" * 60)
+print(f"  視界停車 · 使用統計　　產生時間 {datetime.now(TW):%Y-%m-%d %H:%M}")
+print("═" * 60)
+print(f"\n【每日明細】最近 {len(rows)} 天（台灣時間）\n")
+print("  日期          訪客  開啟  導航點擊")
+print("  " + "─" * 40)
 for r in rows:
-    devs = [("iPhone", r["iphone"]), ("Android", r["android"]), ("iPad", r["ipad"]),
-            ("Mac", r["mac"]), ("Windows", r["windows"])]
-    top = max(devs, key=lambda x: x[1])
-    dtxt = f"{top[0]} {top[1]}" if top[1] else "—"
     wd = "一二三四五六日"[datetime.strptime(r["d"], "%Y-%m-%d").weekday()]
-    print(f"  {r['d']}({wd})  {r['visitors']:>4}   {r['pageloads']:>6}   {r['requests']:>7}   {dtxt}")
-
-tot_v = sum(r["visitors"] for r in rows)
-tot_r = sum(r["requests"] for r in rows)
-print(f"\n  期間合計：訪客人次 {tot_v}　查詢 {tot_r} 次　平均每天 {tot_v/len(rows):.1f} 人")
+    opens = r["opens"] if r.get("basis") == "tw" and r.get("opens") else r["pageloads"]
+    nav = r["nav"] if r.get("basis") == "tw" else None
+    mark = " " if r.get("basis") == "tw" else "*"
+    print(f" {mark}{r['d']}({wd})  {r['visitors']:>3}  {opens:>4}  {('—' if nav is None else nav):>5}  {'█' * min(r['visitors'], 30)}")
+tot = sum(r["visitors"] for r in rows)
+print(f"\n  合計訪客人次 {tot}，平均每天 {tot/len(rows):.1f}")
 
 uniq, = con.execute("SELECT count(*) FROM visitors").fetchone()
-ret = con.execute("SELECT count(*) FROM visitors WHERE days>1").fetchone()[0]
-loyal = con.execute("SELECT count(*) FROM visitors WHERE days>=3").fetchone()[0]
-print(f"\n【回訪分析】（不重複計算同一人）")
-print(f"  累計不重複使用者　{uniq} 人")
-print(f"  回訪 2 天以上　　 {ret} 人" + (f"（回訪率 {ret/uniq*100:.0f}%）" if uniq else ""))
-print(f"  回訪 3 天以上　　 {loyal} 人　← 這是真正的忠實使用者")
+r2, = con.execute("SELECT count(*) FROM visitors WHERE days>=2").fetchone()
+r3, = con.execute("SELECT count(*) FROM visitors WHERE days>=3").fetchone()
+print(f"\n【回訪】累計不重複使用者 {uniq} 人｜回訪 ≥2 天 {r2} 人" +
+      (f"（{r2/uniq*100:.0f}%）" if uniq else "") + f"｜≥3 天 {r3} 人")
 
-print(f"\n【裝置分布】（期間累計查詢次數）")
-for k, n in [("iPhone", "iphone"), ("Android", "android"), ("iPad", "ipad"),
-             ("Mac", "mac"), ("Windows", "windows"), ("其他", "other")]:
-    v = sum(r[n] for r in rows)
+print("\n【裝置】（查詢次數）")
+tr = sum(r["requests"] for r in rows) or 1
+for label, k in (("iPhone", "iphone"), ("Android", "android"), ("iPad", "ipad"),
+                 ("Mac", "mac"), ("Windows", "windows"), ("其他", "other")):
+    v = sum(r[k] or 0 for r in rows)
     if v:
-        print(f"  {k:<8} {v:>5} 次　{'█' * min(30, max(1, v * 30 // max(1, tot_r)))}")
+        print(f"  {label:<8}{v:>5}　{'█' * max(1, v * 30 // tr)}")
 
-print(f"\n【功能使用】（期間累計）")
-print(f"  天氣列被載入　　 {sum(r['weather'] for r in rows)} 次")
-print(f"  歷史預測被載入　 {sum(r['stats'] for r in rows)} 次")
-print(f"  YouBike 圖層　　 {sum(r['youbike'] for r in rows)} 次")
-print(f"  加到手機主畫面　 {sum(r['pwa'] for r in rows)} 次")
-own = sum(r["own_requests"] for r in rows)
+if new:
+    # 點擊類事件 2026-10-16 才開始送，之前的日子沒有這些數字
+    ev = [r for r in new if (r["opens"] or 0) or (r["nav"] or 0)]
+    since = ev[0]["d"] if ev else "2026-10-16"
+    print(f"\n【互動】（點擊紀錄 {since} 起，只算真實訪客）")
+    print(f"  網頁開啟　　　　 {sum(r['opens'] or 0 for r in new)} 次（其中從手機主畫面開 {sum(r['app_opens'] or 0 for r in new)} 次）")
+    print(f"  點導航　　　　　 {sum(r['nav'] or 0 for r in new)} 次")
+    print(f"  點 LINE 回饋　　 {sum(r['line'] or 0 for r in new)} 次")
+    print(f"  點「擴大範圍」　 {sum(r['grow'] or 0 for r in new)} 次")
+    print(f"  天氣／預測載入　 {sum(r['weather'] or 0 for r in new)}／{sum(r['stats'] or 0 for r in new)} 次")
+    top = con.execute("SELECT parkno, sum(n) FROM nav_lots WHERE d>=? GROUP BY parkno ORDER BY 2 DESC LIMIT 5",
+                      (since,)).fetchall()
+    if top:
+        print("  最常被導航的停車場：" + "、".join(f"{names.get(p, p)} {n} 次" for p, n in top))
+own = sum(r["own_requests"] or 0 for r in rows)
 if own:
-    print(f"\n  （另有 {own} 次來自自家網路的請求，已排除在上述數字外）")
+    print(f"\n  （自家網路 {own} 次請求已排除）")
+if legacy:
+    print(f"\n  * {legacy[0]['d']}～{legacy[-1]['d']} 為舊口徑：日期以 UTC 切、當時尚無點擊紀錄")
 print()

@@ -83,9 +83,6 @@
   .rangebar .rval{font-size:13px;font-weight:600;color:var(--accent-dark);white-space:nowrap;min-width:52px;text-align:right}
   .mapbox{margin-top:14px;position:relative;z-index:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
   #map{height:320px}
-  .yb-btn{position:absolute;top:10px;right:10px;z-index:900;font:inherit;font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.18)}
-  .yb-btn.on{background:#0E7490;border-color:#0E7490;color:#FFF}
-  .mk.ybm{background:#0E7490}
 
   .fb-line{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:18px;padding:12px 16px;border-radius:999px;background:#06C755;color:#FFF;font-size:14.5px;font-weight:700;text-decoration:none;box-shadow:0 3px 10px rgba(6,199,85,.3)}
   .fb-line:hover{filter:brightness(1.06)}
@@ -158,6 +155,7 @@
   .qwarn{font-size:12.5px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:6px 10px;font-weight:600}
   .stale{font-size:12px;color:var(--muted);background:var(--ground);border:1px dashed var(--line);border-radius:8px;padding:6px 10px;font-weight:500}
   .hist{font-size:12px;color:var(--muted);background:var(--ground);border-radius:8px;padding:6px 10px}
+  .hist.fallback{color:var(--ink);background:var(--soft);font-weight:600}
   .hist b{color:var(--accent-dark)}
   .types{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
   .type{background:var(--ground);border-radius:8px;padding:8px 10px}
@@ -215,7 +213,6 @@
   </section>
 
   <section class="mapbox" id="mapbox" aria-label="停車場地圖">
-    <button class="yb-btn" id="yb-btn" type="button" aria-pressed="false">🚲 YouBike</button>
     <div id="map"></div>
   </section>
 
@@ -225,9 +222,10 @@
 
   <footer class="foot">
     <p>範圍：以視界學院（新竹市北區中正路107號）為中心，顯示範圍可用上方滑桿調整（100 m〜1 公里，預設 500 m），只列官方 API 有即時資料的停車場，依距離由近到遠排列；步行時間以每分鐘 80 公尺、路線係數 1.3 估算。</p>
-    <p>資料來源：新竹市政府交通處停管科開放資料（<a href="https://hispark.hccg.gov.tw/OpenData/GetParkInfo" target="_blank" rel="noopener">hispark.hccg.gov.tw</a>，與官方「新竹市好停車」App 相同來源）；YouBike 資料來源：交通部 TDX 運輸資料流通服務；天氣資料來源：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>（CC BY 4.0，每 10 分鐘更新，建議僅供參考）；地圖圖資 © OpenStreetMap 貢獻者。</p>
-    <p>即時性說明：本頁每 20 秒自動更新，但市府系統每筆停車場資料通常約 1〜3 分鐘才寫入一次，實測偶爾會出現 20 分鐘以上沒有寫入的情況，且尖峰時段數字可能瞬間大幅變動，因此畫面數字與現場實況可能有落差。每張卡片的「官方更新」欄位即為市府系統寫入該筆資料的時間；若某個停車場超過 15 分鐘沒有更新，該卡片上會直接標註「這個數字是 N 分鐘前的」，其餘資料正常的停車場不受影響。</p>
+    <p>資料來源：新竹市政府交通處停管科開放資料（<a href="https://hispark.hccg.gov.tw/OpenData/GetParkInfo" target="_blank" rel="noopener">hispark.hccg.gov.tw</a>，與官方「新竹市好停車」App 相同來源）；天氣資料來源：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>（CC BY 4.0，每 10 分鐘更新，建議僅供參考）；地圖圖資 © OpenStreetMap 貢獻者。</p>
+    <p>即時性說明：本頁每 20 秒自動更新，但市府系統每筆停車場資料通常約 1〜3 分鐘才寫入一次，實測市府系統常在每週六傍晚 4 點半後暫停更新約 20–40 分鐘，且尖峰時段數字可能瞬間大幅變動，因此畫面數字與現場實況可能有落差。每張卡片的「官方更新」欄位即為市府系統寫入該筆資料的時間；若某個停車場超過 15 分鐘沒有更新，該卡片上會直接標註「這個數字是 N 分鐘前的」，並改以過去幾週同時段的紀錄供參考，其餘資料正常的停車場不受影響。</p>
     <p>免責聲明：本頁面由視界學院整理提供，僅供行前參考。車位數量隨時變動，實際以現場為準；視界學院不保證資料之即時性、正確性與完整性，亦不對使用本頁面資訊所生之任何損害負責。</p>
+    <p>使用統計：本頁只在視界學院自己的主機記錄匿名的使用次數（例如開啟次數、點了幾次導航），用來改善服務；不使用任何第三方追蹤。伺服器原始紀錄 14 天後自動刪除，長期只保留去識別化的統計數字。</p>
     <p>開源聲明：本系統已在 GitHub 開源（<a href="https://github.com/CasperHsu/vision-parking" target="_blank" rel="noopener">CasperHsu/vision-parking</a>，MIT 授權）——歡迎自由取用，改成你的店、你的城市。若你部署了自己的版本，歡迎到 GitHub 開個 issue 或透過上方 LINE 告訴我們；這不是授權義務，但知道這個點子在別的地方發芽，是我們最開心的事。</p>
   </footer>
 </div>
@@ -241,7 +239,7 @@
       <li><span>📍</span><div><b>周邊停車場即時空位</b><br>以學院為中心，範圍 100 m〜1 公里可調</div></li>
       <li><span>🧭</span><div><b>自動建議去哪停</b><br>有位的排最前面；車位少會提醒排隊或擴大範圍</div></li>
       <li><span>🌦</span><div><b>學院即時天氣</b><br>出門前看一眼要不要帶傘、防曬（每 10 分鐘更新）</div></li>
-      <li><span>🚲</span><div><b>YouBike 站點資訊</b><br>地圖右上角可開啟，顯示各站可借車數</div></li>
+      <li><span>📊</span><div><b>這個時段通常剩幾位</b><br>依過去幾週紀錄推估；市府資料暫停時也能先參考</div></li>
       <li><span>⏱</span><div><b>每 20 秒自動更新</b><br>官方系統約 1〜3 分鐘寫入一次，數字可能有落差</div></li>
     </ul>
     <p class="intro-fine">免責聲明：本頁僅供行前參考，車位隨時變動、以現場為準；視界學院不保證資料之即時性與正確性，亦不對使用本頁資訊所生損害負責。</p>
@@ -371,19 +369,40 @@
     });
   }
 
-  function histFor(id){
+  // 歷史預測：回傳 {n 通常剩幾位, kind 平日/週末, hour}；資料不夠（未滿 min_days 個不同日子）就回 null
+  function histCell(id){
     try{
       const s = stats && stats.stats && stats.stats[id];
-      if(!s) return "";
+      if(!s) return null;
       const d = new Date();
       const kind = (d.getDay()===0 || d.getDay()===6) ? "we" : "wd";
       const cell = s[kind] && s[kind][d.getHours()];
+      if(!cell) return null;
       // 門檻看「涵蓋幾個不同日子」：同一天取樣再密也只是一天的證據
-      const minD = stats.min_days || 2;
       const days = cell[2]!=null ? cell[2] : Math.floor(cell[1]/6); // 舊格式回推
-      if(!cell || days < minD) return "";
-      return `📊 近 ${stats.days||28} 天${kind==="we"?"週末":"平日"} ${d.getHours()} 點時段，通常剩約 <b>${cell[0]}</b> 位`;
-    }catch(e){ return ""; }
+      if(days < (stats.min_days || 2)) return null;
+      return { n: cell[0], kind, hour: d.getHours() };
+    }catch(e){ return null; }
+  }
+  // 卡片上的「停更標記＋歷史預測」：市府暫停時，預測就是這張卡片的答案
+  function staleAndHist(it, s){
+    const x = it.x, age = ageMin(x.UPDATETIME);
+    const stale = STALE_MIN!=null && age!=null && age>STALE_MIN;
+    const hv = s.motoOnly ? null : histCell(it.id);
+    let out = "";
+    if(stale){
+      const d = new Date();
+      // 實測 9/19 起每週六 16:40 前後市府固定暫停 20–40 分鐘
+      const sat = d.getDay()===6 && d.getHours()>=16 && d.getHours()<=18;
+      out += `<div class="stale">⏸ 這個數字是 ${fmtAge(age)}的${sat ? "・市府常在週六傍晚例行暫停，通常 20–40 分鐘恢復" : "，市府尚未更新"}</div>`;
+    }
+    if(hv){
+      const when = `近 ${stats.days||28} 天${hv.kind==="we"?"週末":"平日"} ${hv.hour} 點時段`;
+      out += stale
+        ? `<div class="hist fallback">📊 先參考這個：${when}，通常剩約 <b>${hv.n}</b> 位</div>`
+        : `<div class="hist">📊 ${when}，通常剩約 <b>${hv.n}</b> 位</div>`;
+    }
+    return out;
   }
 
   function stockOf(x){
@@ -420,31 +439,10 @@
       const icon = L.divIcon({className:"",html:`<div class="mk ${s.lv}">${s.total?s.free:"—"}</div>`,iconSize:[34,34],iconAnchor:[17,17]});
       const dir = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(it.x.LATITUDE+","+it.x.LONGITUDE)}`;
       L.marker([it.lat,it.lng],{icon}).addTo(markersLayer).bindPopup(
-        `<b>${esc(it.x.PARKINGNAME)}</b><br>剩 ${s.free} / ${s.total} ${s.unit}（${LABEL[s.lv]}${!s.motoOnly&&s.free>0&&s.free<3?"・可能排隊":""}）<br>距視界學院 ${fmtDist(it.d)}・步行約 ${walkMin(it.d)} 分<br><a class="pop-nav" href="${esc(dir)}" target="_blank" rel="noopener">導航到這裡 →</a>`);
+        `<b>${esc(it.x.PARKINGNAME)}</b><br>剩 ${s.free} / ${s.total} ${s.unit}（${LABEL[s.lv]}${!s.motoOnly&&s.free>0&&s.free<3?"・可能排隊":""}）<br>距視界學院 ${fmtDist(it.d)}・步行約 ${walkMin(it.d)} 分<br><a class="pop-nav" data-pk="${esc(it.x.PARKNO)}" href="${esc(dir)}" target="_blank" rel="noopener">導航到這裡 →</a>`);
     });
   }
 
-  // ---- YouBike 圖層（預設關，使用者手動開） ----
-  let ybOn = false, ybLayer = null;
-  try{ ybOn = localStorage.getItem("hcpark.yb")==="1"; }catch(e){}
-  const ybBtn = document.getElementById("yb-btn");
-  function setYbBtn(){ ybBtn.classList.toggle("on", ybOn); ybBtn.setAttribute("aria-pressed", ybOn?"true":"false"); }
-  async function loadYoubike(){
-    if(!map || typeof L==="undefined") return;
-    if(!ybLayer) ybLayer = L.layerGroup();
-    if(!ybOn){ map.removeLayer(ybLayer); return; }
-    try{
-      const j = await getJSON("./youbike.json");
-      ybLayer.clearLayers();
-      (j.stations||[]).forEach(s=>{
-        if(s.d<=500) return; // 500 m 內用走的就好，只顯示遠端停車才用得到的站
-        const icon = L.divIcon({className:"",html:`<div class="mk ybm">${s.rent==null?"—":s.rent}</div>`,iconSize:[34,34],iconAnchor:[17,17]});
-        L.marker([s.lat,s.lng],{icon}).addTo(ybLayer).bindPopup(
-          `<b>🚲 ${esc(s.name)}</b><br>可借 ${s.rent==null?"—":s.rent}（電輔 ${s.ebike==null?0:s.ebike}）・可還 ${s.ret==null?"—":s.ret}<br>距視界學院 ${fmtDist(s.d)}・步行約 ${walkMin(s.d)} 分`);
-      });
-      ybLayer.addTo(map);
-    }catch(e){}
-  }
 
   function render(data, via){
     lastData = data; lastVia = via;
@@ -505,8 +503,7 @@
         <div class="main num"><span class="free ${s.lv}">${s.free}</span><span class="total">/ ${s.total} ${s.unit}</span></div>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${s.total}" aria-valuenow="${s.free}" aria-label="剩餘${s.unit}"><i class="${s.lv}" style="width:${pct.toFixed(1)}%"></i></div>
         ${!s.motoOnly && s.free>0 && s.free<3 ? `<div class="qwarn">⚠ 剩不到 3 位，可能有人在排隊，抵達時不一定有位</div>` : ""}
-        ${STALE_MIN!=null && ageMin(x.UPDATETIME)>STALE_MIN ? `<div class="stale">⏸ 這個數字是 ${fmtAge(ageMin(x.UPDATETIME))}的，市府尚未更新</div>` : ""}
-        ${!s.motoOnly && histFor(it.id) ? `<div class="hist">${histFor(it.id)}</div>` : ""}
+        ${staleAndHist(it, s)}
         ${types?`<div class="types">${types}</div>`:""}
         <dl>
           <dt>平日</dt><dd>${esc(wd.fee||"—")}</dd>
@@ -542,6 +539,7 @@
       document.getElementById("best-n").classList.toggle("low", rec.free<3);
       const gb = document.getElementById("grow-btn");
       if(gb) gb.onclick = ()=>{
+        track("grow");
         radiusM = +gb.dataset.r;
         radEl.value = radiusM; radVal.textContent = fmtDist(radiusM);
         try{ localStorage.setItem("hcpark.radius", radiusM); }catch(e){}
@@ -550,7 +548,6 @@
     }
     animateNumbers();
     updateMap(list);
-    loadYoubike();
     const now = new Date(); const p=x=>String(x).padStart(2,"0");
     // 市府端最新一筆的寫入時間：官方若卡住，這個數字會一直往上長
     const ages = data.map(x=>ageMin(x.UPDATETIME)).filter(v=>v!=null);
@@ -592,12 +589,27 @@
     if(lastData) render(lastData, lastVia);
   });
 
-  ybBtn.addEventListener("click", ()=>{
-    ybOn = !ybOn;
-    try{ localStorage.setItem("hcpark.yb", ybOn?"1":"0"); }catch(e){}
-    setYbBtn(); loadYoubike();
+
+  // ---- 匿名使用次數：只送到自家主機 /e（nginx 回 204 只留紀錄），不用任何第三方 ----
+  function track(k, p){
+    const u = "./e?k=" + encodeURIComponent(k) + (p ? "&p=" + encodeURIComponent(p) : "");
+    try{ if(navigator.sendBeacon && navigator.sendBeacon(u)) return; }catch(e){}
+    try{ fetch(u, {keepalive:true, cache:"no-store"}); }catch(e){}
+  }
+  // 點導航（卡片兩顆按鈕＋地圖彈窗）與 LINE 回饋
+  document.addEventListener("click", e=>{
+    const a = e.target.closest && e.target.closest("a.btn, a.pop-nav, a.fb-line");
+    if(!a) return;
+    if(a.classList.contains("fb-line")) return track("line");
+    const card = a.closest("[data-parkno]");
+    const pk = card ? card.dataset.parkno : (a.dataset.pk || "");
+    track("nav", pk + "-" + (a.classList.contains("pop-nav") ? "map" : a.classList.contains("primary") ? "gmap" : "dir"));
   });
-  setYbBtn();
+  // 開啟一次記一次；從手機主畫面（App 模式）開的另外標記
+  try{
+    const isApp = navigator.standalone===true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+    track("open", isApp ? "app" : "web");
+  }catch(e){}
 
   // 首次進入導覽（看過一次就不再出現）
   try{

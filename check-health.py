@@ -119,6 +119,32 @@ def main():
     else:
         print("\n（尚未收集 UPDATETIME 欄位，明天起的資料才有市府端寫入分析）")
 
+    # 近 4 週市府中斷紀錄（落後 >15 分視為中斷）：用來追蹤「每週六傍晚例行暫停」是否持續、有沒有變長
+    if has_upd:
+        hist = con.execute("SELECT ts, max(upd) FROM snap WHERE upd IS NOT NULL AND ts>=? GROUP BY ts ORDER BY ts",
+                           (int(time.time()) - 28 * 86400,)).fetchall()
+        ev, cur = [], None
+        for ts, upd in hist:
+            try:
+                lag = (datetime.fromtimestamp(ts, TW) - datetime.fromisoformat(upd).replace(tzinfo=TW)).total_seconds() / 60
+            except Exception:
+                continue
+            if lag > 15:
+                cur = [ts, ts, lag] if cur is None else [cur[0], ts, max(cur[2], lag)]
+            elif cur:
+                ev.append(cur); cur = None
+        if cur:
+            ev.append(cur)
+        print("\n--- 近 4 週市府中斷紀錄（落後超過 15 分鐘）---")
+        if not ev:
+            print("   沒有中斷")
+        for a, b, m in ev:
+            t = datetime.fromtimestamp(a, TW)
+            print(f"   {t:%m/%d}（週{'一二三四五六日'[t.weekday()]}）{t:%H:%M} 起，約 {(b - a) / 60 + 15:.0f} 分鐘（最大落後 {m:.0f} 分）")
+        sat = [e for e in ev if datetime.fromtimestamp(e[0], TW).weekday() == 5]
+        if ev and len(sat) == len(ev):
+            print("   → 全部發生在週六傍晚，屬市府例行暫停，非本站問題")
+
     print("\n結論：", end="")
     if no_write and len(no_write) >= len(by) * 0.5:
         print("市府端整批停止寫入，本站管線正常但拿不到新資料——這段期間的數字都是舊值。")

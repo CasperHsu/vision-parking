@@ -30,6 +30,11 @@ server {
         index index.html;
         add_header Cache-Control "no-store";
     }
+    # 匿名使用事件（開啟／點導航）：只留 access log，不回內容
+    location = /parking/e { add_header Cache-Control "no-store"; return 204; }
+    # 掃描機器人常找的敏感檔：直接斷線（保留 certbot 的 .well-known 驗證路徑）
+    location ~ /\.(?!well-known) { return 444; }
+    location ~* \.(php|asp|aspx|jsp|cgi|env|sql|bak|old|save|swp)$ { return 444; }
 }
 NGINX
 fi
@@ -61,15 +66,9 @@ chmod +x /usr/local/bin/fetch-parkinfo.sh
 /usr/local/bin/fetch-parkinfo.sh
 ( { crontab -l 2>/dev/null | grep -v fetch-parkinfo.sh; } || true ; echo "* * * * * /usr/local/bin/fetch-parkinfo.sh" ) | crontab -
 
-# 4) TDX 加值資料（YouBike／路況快報／CCTV）——需要 /etc/parking-tdx.env（TDX_ID、TDX_SECRET）
-if [ -f /etc/parking-tdx.env ] && [ -f "$(dirname "$0")/fetch-tdx.py" ]; then
-  cp "$(dirname "$0")/fetch-tdx.py" /usr/local/bin/fetch-tdx.py
-  chmod +x /usr/local/bin/fetch-tdx.py
-  /usr/local/bin/fetch-tdx.py || true
-  ( { crontab -l 2>/dev/null | grep -v fetch-tdx.py; } || true ; echo "* * * * * /usr/local/bin/fetch-tdx.py >/dev/null 2>&1" ) | crontab -
-else
-  echo "（略過 TDX 加值資料：缺 /etc/parking-tdx.env 或 fetch-tdx.py）"
-fi
+# 4) YouBike（TDX）已於 2026-10-16 移除：清掉舊排程與快取檔（舊機器重跑部署時用）
+( { crontab -l 2>/dev/null | grep -v fetch-tdx.py; } || true ) | crontab -
+rm -f /usr/local/bin/fetch-tdx.py "$WEBROOT/youbike.json"
 
 # 5) 歷史統計：每 2 分鐘記錄快照到 SQLite、每小時彙整 stats.json（不呼叫外部 API）
 if [ -f "$(dirname "$0")/log-parkstats.py" ]; then
@@ -88,7 +87,7 @@ if [ -f "$(dirname "$0")/fetch-weather.py" ]; then
   ( { crontab -l 2>/dev/null | grep -v fetch-weather.py; } || true ; echo "*/10 * * * * /usr/local/bin/fetch-weather.py >/dev/null 2>&1" ) | crontab -
 fi
 
-# 7) 訪客長期統計：每小時把 nginx 紀錄萃取成每日彙總（log 只留 14 天，這裡永久保存）
+# 7) 訪客長期統計：每小時把 nginx 紀錄萃取成每日彙總（log 只留 14 天，這裡永久保存；口徑見 log-visitors.py 開頭說明）
 for f in log-visitors.py visitor-report.py; do
   if [ -f "$(dirname "$0")/$f" ]; then
     cp "$(dirname "$0")/$f" /usr/local/bin/$f
