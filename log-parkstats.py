@@ -4,7 +4,7 @@
 #   2) 超過 FINE_DAYS 天的舊資料自動稀釋成每 10 分鐘一筆（近期留高解析度供診斷，
 #      舊資料只用於統計平均，不需要那麼細）
 #   3) stats.json 超過 1 小時就重新彙整：近 28 天、平日(wd)/週末(we)×24 小時的平均剩餘車位
-#      格式：{"days":28,"stats":{"004":{"wd":[[平均,樣本數,天數]×24],"we":[...]}}}
+#      格式：{"days":28,"stats":{"004":{"wd":[[平均,樣本數,天數,剩不到3位的%]×24],"we":[...]}}}
 #      顯示門檻看「天數」而非樣本數——同一天的密集取樣不算獨立證據
 import json, os, sqlite3, time
 from datetime import datetime
@@ -70,15 +70,16 @@ if stale(OUT, 3500):
     for ts, parkno, free in q:
         dt = datetime.fromtimestamp(ts, TZ)
         kind = "we" if dt.weekday() >= 5 else "wd"
-        a = agg.setdefault(parkno, {"wd": [[0, 0, set()] for _ in range(24)],
-                                    "we": [[0, 0, set()] for _ in range(24)]})
+        a = agg.setdefault(parkno, {"wd": [[0, 0, set(), 0] for _ in range(24)],
+                                    "we": [[0, 0, set(), 0] for _ in range(24)]})
         cell = a[kind][dt.hour]
         cell[0] += free
         cell[1] += 1
         cell[2].add(dt.toordinal())  # 這格涵蓋了哪幾個不同日子
+        cell[3] += free < 3            # 剩不到 3 位（到了很可能要排隊）
     out = {}
     for pk, a in agg.items():
-        out[pk] = {k: [[round(c[0] / c[1]), c[1], len(c[2])] if c[1] else None for c in a[k]]
+        out[pk] = {k: [[round(c[0] / c[1]), c[1], len(c[2]), round(c[3] * 100 / c[1])] if c[1] else None for c in a[k]]
                    for k in ("wd", "we")}
     tmp = OUT + ".tmp"
     with open(tmp, "w") as f:

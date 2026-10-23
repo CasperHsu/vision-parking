@@ -156,6 +156,7 @@
   .stale{font-size:12px;color:var(--muted);background:var(--ground);border:1px dashed var(--line);border-radius:8px;padding:6px 10px;font-weight:500}
   .hist{font-size:12px;color:var(--muted);background:var(--ground);border-radius:8px;padding:6px 10px}
   .hist.fallback{color:var(--ink);background:var(--soft);font-weight:600}
+  .hist .risk{color:var(--hot);font-weight:700}
   .hist b{color:var(--accent-dark)}
   .types{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
   .type{background:var(--ground);border-radius:8px;padding:8px 10px}
@@ -223,7 +224,7 @@
   <footer class="foot">
     <p>範圍：以視界學院（新竹市北區中正路107號）為中心，顯示範圍可用上方滑桿調整（100 m〜1 公里，預設 500 m），只列官方 API 有即時資料的停車場，依距離由近到遠排列；步行時間以每分鐘 80 公尺、路線係數 1.3 估算。</p>
     <p>資料來源：新竹市政府交通處停管科開放資料（<a href="https://hispark.hccg.gov.tw/OpenData/GetParkInfo" target="_blank" rel="noopener">hispark.hccg.gov.tw</a>，與官方「新竹市好停車」App 相同來源）；天氣資料來源：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>（CC BY 4.0，每 10 分鐘更新，建議僅供參考）；地圖圖資 © OpenStreetMap 貢獻者。</p>
-    <p>即時性說明：本頁每 20 秒自動更新，但市府系統每筆停車場資料通常約 1〜3 分鐘才寫入一次，實測市府系統常在每週六傍晚 4 點半後暫停更新約 20–40 分鐘，且尖峰時段數字可能瞬間大幅變動，因此畫面數字與現場實況可能有落差。每張卡片的「官方更新」欄位即為市府系統寫入該筆資料的時間；若某個停車場超過 15 分鐘沒有更新，該卡片上會直接標註「這個數字是 N 分鐘前的」，並改以過去幾週同時段的紀錄供參考，其餘資料正常的停車場不受影響。</p>
+    <p>即時性說明：本頁每 20 秒自動更新，但市府系統每筆停車場資料通常約 1〜3 分鐘才寫入一次，實測市府系統常在每週六傍晚 4 點多暫停更新，通常 1 小時內恢復，且尖峰時段數字可能瞬間大幅變動，因此畫面數字與現場實況可能有落差。每張卡片的「官方更新」欄位即為市府系統寫入該筆資料的時間；若某個停車場超過 15 分鐘沒有更新，該卡片上會直接標註「這個數字是 N 分鐘前的」，並改以過去幾週同時段的紀錄供參考，其餘資料正常的停車場不受影響。</p>
     <p>免責聲明：本頁面由視界學院整理提供，僅供行前參考。車位數量隨時變動，實際以現場為準；視界學院不保證資料之即時性、正確性與完整性，亦不對使用本頁面資訊所生之任何損害負責。</p>
     <p>使用統計：本頁只在視界學院自己的主機記錄匿名的使用次數（例如開啟次數、點了幾次導航），用來改善服務；不使用任何第三方追蹤。伺服器原始紀錄 14 天後自動刪除，長期只保留去識別化的統計數字。</p>
     <p>開源聲明：本系統已在 GitHub 開源（<a href="https://github.com/CasperHsu/vision-parking" target="_blank" rel="noopener">CasperHsu/vision-parking</a>，MIT 授權）——歡迎自由取用，改成你的店、你的城市。若你部署了自己的版本，歡迎到 GitHub 開個 issue 或透過上方 LINE 告訴我們；這不是授權義務，但知道這個點子在別的地方發芽，是我們最開心的事。</p>
@@ -239,7 +240,7 @@
       <li><span>📍</span><div><b>周邊停車場即時空位</b><br>以學院為中心，範圍 100 m〜1 公里可調</div></li>
       <li><span>🧭</span><div><b>自動建議去哪停</b><br>有位的排最前面；車位少會提醒排隊或擴大範圍</div></li>
       <li><span>🌦</span><div><b>學院即時天氣</b><br>出門前看一眼要不要帶傘、防曬（每 10 分鐘更新）</div></li>
-      <li><span>📊</span><div><b>這個時段通常剩幾位</b><br>依過去幾週紀錄推估；市府資料暫停時也能先參考</div></li>
+      <li><span>📊</span><div><b>這個時段通常剩幾位</b><br>依過去 4 週紀錄推估，也會提醒哪一場這時段常客滿</div></li>
       <li><span>⏱</span><div><b>每 20 秒自動更新</b><br>官方系統約 1〜3 分鐘寫入一次，數字可能有落差</div></li>
     </ul>
     <p class="intro-fine">免責聲明：本頁僅供行前參考，車位隨時變動、以現場為準；視界學院不保證資料之即時性與正確性，亦不對使用本頁資訊所生損害負責。</p>
@@ -266,6 +267,8 @@
   ];
   const INTERVAL = 20;
   const STALE_MIN = 15; // 官方超過這個分鐘數沒重寫該筆，就在那張卡片上標註（設 null 可關閉）
+  // 推薦參考歷史：這時段「剩不到 3 位」的時間比例 ≥RISKY% 且現在不到 FEW 位＝高風險，改推 <SAFE% 的停車場
+  const RISKY = 40, SAFE = 20, FEW = 10;
   const lotsEl = document.getElementById("lots");
   const statusEl = document.getElementById("status");
   const noticeEl = document.getElementById("notice");
@@ -277,8 +280,17 @@
   let stats = null; // 歷史統計（VPS 每小時彙整近 28 天平日/週末×小時平均）
 
   // ---- fetch: direct first, then public CORS relays ----
+  // 員工模式：網址帶 ?staff=1 開過一次，這台裝置之後的瀏覽都標記為員工、不列入使用統計（?staff=0 取消）
+  let STAFF = false;
+  try{
+    const q = new URLSearchParams(location.search);
+    if(q.get("staff")==="1") localStorage.setItem("hcpark.staff","1");
+    if(q.get("staff")==="0") localStorage.removeItem("hcpark.staff");
+    STAFF = localStorage.getItem("hcpark.staff")==="1";
+  }catch(e){}
+  const mark = u => (STAFF && u.startsWith("./")) ? u + (u.includes("?") ? "&" : "?") + "staff=1" : u;
   async function getJSON(url, parse){
-    const r = await fetch(url, {cache:"no-store"});
+    const r = await fetch(mark(url), {cache:"no-store"});
     if(!r.ok) throw new Error("HTTP "+r.status);
     const t = await r.text();
     return parse ? parse(t) : JSON.parse(t);
@@ -381,7 +393,7 @@
       // 門檻看「涵蓋幾個不同日子」：同一天取樣再密也只是一天的證據
       const days = cell[2]!=null ? cell[2] : Math.floor(cell[1]/6); // 舊格式回推
       if(days < (stats.min_days || 2)) return null;
-      return { n: cell[0], kind, hour: d.getHours() };
+      return { n: cell[0], kind, hour: d.getHours(), low: cell[3]!=null ? cell[3] : null };
     }catch(e){ return null; }
   }
   // 卡片上的「停更標記＋歷史預測」：市府暫停時，預測就是這張卡片的答案
@@ -392,15 +404,16 @@
     let out = "";
     if(stale){
       const d = new Date();
-      // 實測 9/19 起每週六 16:40 前後市府固定暫停 20–40 分鐘
+      // 實測 9/19 起連續 5 個週六傍晚 4 點多市府固定暫停，最長約 50 分鐘（10/17）
       const sat = d.getDay()===6 && d.getHours()>=16 && d.getHours()<=18;
-      out += `<div class="stale">⏸ 這個數字是 ${fmtAge(age)}的${sat ? "・市府常在週六傍晚例行暫停，通常 20–40 分鐘恢復" : "，市府尚未更新"}</div>`;
+      out += `<div class="stale">⏸ 這個數字是 ${fmtAge(age)}的${sat ? "・市府常在週六傍晚例行暫停，通常 1 小時內恢復" : "，市府尚未更新"}</div>`;
     }
     if(hv){
       const when = `近 ${stats.days||28} 天${hv.kind==="we"?"週末":"平日"} ${hv.hour} 點時段`;
+      const rk = (hv.low!=null && hv.low>=RISKY) ? `・<span class="risk">常客滿（${hv.low}% 時間不到 3 位）</span>` : "";
       out += stale
-        ? `<div class="hist fallback">📊 先參考這個：${when}，通常剩約 <b>${hv.n}</b> 位</div>`
-        : `<div class="hist">📊 ${when}，通常剩約 <b>${hv.n}</b> 位</div>`;
+        ? `<div class="hist fallback">📊 先參考這個：${when}，通常剩約 <b>${hv.n}</b> 位${rk}</div>`
+        : `<div class="hist">📊 ${when}，通常剩約 <b>${hv.n}</b> 位${rk}</div>`;
     }
     return out;
   }
@@ -462,7 +475,24 @@
     let rec = null;
     const comfy = carLots.find(it=>n(it.x.FREEQUANTITY)>=3);
     const any = carLots.find(it=>n(it.x.FREEQUANTITY)>0);
-    if(comfy) rec = {mode:"go", it:comfy, free:n(comfy.x.FREEQUANTITY)};
+    // 參考歷史（2026-10-23 數據：週末最近三場有一半時間客滿）：最近有位的那場若高風險，改推比較穩的
+    const lowOf = it => { const h = histCell(it.id); return h ? h.low : null; };
+    let risk = null;
+    if(comfy){
+      const r = lowOf(comfy);
+      // 這場資料若已停更（週六傍晚市府例行暫停），畫面上的空位數不可靠，只看歷史風險
+      const age = ageMin(comfy.x.UPDATETIME), stale = STALE_MIN!=null && age!=null && age>STALE_MIN;
+      if(r!=null && r>=RISKY && (stale || n(comfy.x.FREEQUANTITY)<FEW)){
+        const safe = it => it!==comfy && n(it.x.TOTALQUANTITY)>0 && n(it.x.FREEQUANTITY)>=3 && lowOf(it)!=null && lowOf(it)<SAFE;
+        const inR = carLots.filter(safe).sort((a,b)=>a.d-b.d)[0] || null;
+        const outR = inR ? null : (items.filter(it=>it.d>radiusM && it.d<=RADIUS_MAX && safe(it)).sort((a,b)=>a.d-b.d)[0] || null);
+        risk = { from: comfy, low: r, inR, outR, stale, age };
+      }
+    }
+    if(comfy){
+      const pick = (risk && risk.inR) ? risk.inR : comfy;
+      rec = {mode:"go", it:pick, free:n(pick.x.FREEQUANTITY), risk};
+    }
     else if(any) rec = {mode:"queue", it:any, free:n(any.x.FREEQUANTITY)};
     else{
       const sp = carLots.find(it=>n(it.x.FREEQUANTITYECAR)>0 || n(it.x.FREEQUANTITYDIS)>0);
@@ -525,7 +555,14 @@
       const meta = isFinite(rec.it.d) ? ` <small>${fmtDist(rec.it.d)}・步行約 ${walkMin(rec.it.d)} 分</small>` : "";
       document.getElementById("best-lbl").innerHTML = `學院 ${fmtDist(radiusM)} 內合計 <b>${totalFree}</b> 個汽車空位`;
       let who;
-      if(rec.mode==="go") who = `建議停 ${esc(x.PARKINGNAME)}${meta}`;
+      if(rec.mode==="go"){
+        who = `建議停 ${esc(x.PARKINGNAME)}${meta}`;
+        const rk = rec.risk;
+        const now = rk ? (rk.stale ? `的資料停在 ${fmtAge(rk.age)}` : ` 只剩 ${n(rk.from.x.FREEQUANTITY)} 位`) : "";
+        if(rk && rk.inR) who += `<div class="grow-tip">最近的 ${esc(rk.from.x.PARKINGNAME)}${now}，這時段常客滿（過去 ${rk.low}% 時間不到 3 位），改推這場比較穩</div>`;
+        else if(rk) who += `<div class="grow-tip">${rk.stale ? `這場資料停在 ${fmtAge(rk.age)}，` : ""}這時段常客滿（過去 ${rk.low}% 時間不到 3 位），抵達時不一定有位</div>`;
+        if(rk && rk.outR) who += `<button type="button" class="grow" id="grow-btn" data-r="${Math.min(RADIUS_MAX, Math.ceil(rk.outR.d/100)*100)}">比較穩：${esc(rk.outR.x.PARKINGNAME)}（${fmtDist(rk.outR.d)}）這時段很少客滿，點我擴大 →</button>`;
+      }
       else if(rec.mode==="queue") who = `空位極少，建議直接到 ${esc(x.PARKINGNAME)} 排隊${meta} <span class="bnote">抵達時不一定有位</span>`;
       else if(rec.mode==="special") who = `${esc(x.PARKINGNAME)}${meta} <span class="bnote">${esc(rec.note)}</span>`;
       else who = `目前全滿，建議到最近的 ${esc(x.PARKINGNAME)} 排隊等位${meta}`;
@@ -554,7 +591,7 @@
     const freshest = ages.length ? Math.min(...ages) : null;
     let srcTxt = "";
     if(freshest!=null) srcTxt = ` · 市府資料 ${fmtAge(freshest)}`;
-    statusEl.textContent = `頁面更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}${srcTxt} · ${fmtDist(radiusM)} 內 ${list.length} 場`;
+    statusEl.textContent = `頁面更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}${srcTxt} · ${fmtDist(radiusM)} 內 ${list.length} 場${STAFF ? " · 員工模式（不列入統計）" : ""}`;
     // 資料不新鮮不再跳全站警告（太吵、像故障）；改在各停車場卡片上個別標示
     try{ localStorage.setItem("hcpark.last", JSON.stringify({t:now.toISOString(), data})); }catch(e){}
   }
@@ -592,7 +629,7 @@
 
   // ---- 匿名使用次數：只送到自家主機 /e（nginx 回 204 只留紀錄），不用任何第三方 ----
   function track(k, p){
-    const u = "./e?k=" + encodeURIComponent(k) + (p ? "&p=" + encodeURIComponent(p) : "");
+    const u = mark("./e?k=" + encodeURIComponent(k) + (p ? "&p=" + encodeURIComponent(p) : ""));
     try{ if(navigator.sendBeacon && navigator.sendBeacon(u)) return; }catch(e){}
     try{ fetch(u, {keepalive:true, cache:"no-store"}); }catch(e){}
   }

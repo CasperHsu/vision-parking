@@ -63,8 +63,15 @@ if new:
     if top:
         print("  最常被導航的停車場：" + "、".join(f"{names.get(p, p)} {n} 次" for p, n in top))
 own = sum(r["own_requests"] or 0 for r in rows)
-if own:
-    print(f"\n  （自家網路 {own} 次請求已排除）")
+ab = sum(r.get("overseas") or 0 for r in rows)
+st = sum(r.get("staff") or 0 for r in rows)
+ex = []
+if ab: ex.append(f"海外／雲端主機 {ab} 人次（多半是搜尋引擎與掃描服務用真瀏覽器在跑）")
+if st: ex.append(f"員工模式 {st} 次請求")
+if own: ex.append(f"自家網路 {own} 次請求")
+if ex:
+    print("\n  已排除：" + "；".join(ex))
+print("  只計台灣連線的口徑自 2026-10-23 起；更早的日子若已不在紀錄範圍內，可能含海外爬蟲")
 if legacy:
     print(f"\n  * {legacy[0]['d']}～{legacy[-1]['d']} 為舊口徑：日期以 UTC 切、當時尚無點擊紀錄")
 print()

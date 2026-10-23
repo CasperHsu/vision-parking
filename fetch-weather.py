@@ -2,7 +2,7 @@
 # 視界學院即時停車系統：學院即時天氣快取
 # 資料源 Open-Meteo（免金鑰、CC BY 4.0）；cron 每 10 分鐘執行，寫 weather.json 供頁面讀取
 # 之後若要換中央氣象署官方資料：改 URL 與欄位對應即可，輸出格式不變
-import json, os, tempfile, urllib.request
+import json, os, tempfile, time, urllib.request
 from datetime import datetime, timezone, timedelta
 
 LAT, LNG = 24.80725, 120.96794  # 視界學院（新竹市北區中正路107號）
@@ -16,8 +16,16 @@ URL = ("https://api.open-meteo.com/v1/forecast"
 
 def main():
     req = urllib.request.Request(URL, headers={"User-Agent": "vision-parking (github.com/CasperHsu/vision-parking)"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        j = json.load(r)
+    # Open-Meteo 偶爾沒回應（2026-10-23 實測漏過一輪）：最多試 3 次，間隔 5、15 秒
+    for i, wait in enumerate((5, 15, None)):
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                j = json.load(r)
+            break
+        except Exception:
+            if wait is None:
+                raise
+            time.sleep(wait)
     cur, hh = j["current"], j["hourly"]
 
     # 從「現在這個小時」起算 4 個小時桶（涵蓋未來 3 小時）取最大值
