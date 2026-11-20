@@ -20,7 +20,7 @@ TW = timezone(timedelta(hours=8))
 DB = "/var/lib/parking/visitors.db"
 SALT_FILE = "/etc/parking-visitor-salt"
 LOGS = sorted(glob.glob("/var/log/nginx/access.log*"))   # logrotate 保留 14 天
-OWN_IPS = {"114.43.100.227"}                              # Casper 自家網路（開發測試）
+OWN_IPS = set()                                           # 自家網路不寫在公開的程式碼裡，請放 OWN_FILE
 OWN_FILE = "/etc/parking-own-ips"                         # 要再排除的網路，一行一個 IP
 TW_CACHE = "/var/lib/parking/tw-ip-ranges.txt"
 APNIC = "https://ftp.apnic.net/stats/apnic/delegated-apnic-latest"
